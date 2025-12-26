@@ -1,65 +1,108 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
+import { triggerSOS, checkCallStatus } from "./actions";
+import Navbar from "./components/Navbar"; // <--- 1. IMPORT NAVBAR
 
 export default function Home() {
+  const [status, setStatus] = useState("IDLE"); // IDLE, LOADING, WAITING, DISPATCHED
+  const [callId, setCallId] = useState<string | null>(null);
+
+  // 1. Handle the Click
+  const handleSOS = () => {
+    setStatus("LOADING");
+
+    const startEmergency = async (lat: number, lng: number) => {
+      const result = await triggerSOS(lat, lng);
+      if (result.success && result.callId) {
+        setCallId(result.callId);
+        setStatus("WAITING"); // Now we wait for Admin
+      } else {
+        alert("Failed to connect.");
+        setStatus("IDLE");
+      }
+    };
+
+    if (!navigator.geolocation) {
+      startEmergency(23.8103, 90.4125); // Demo Location
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => startEmergency(pos.coords.latitude, pos.coords.longitude),
+      (err) => {
+        alert("GPS Blocked. Sending Demo Location.");
+        startEmergency(23.8103, 90.4125);
+      }
+    );
+  };
+
+  // 2. The "Polling" Effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (status === "WAITING" && callId) {
+      interval = setInterval(async () => {
+        const currentStatus = await checkCallStatus(callId);
+        console.log("Checking status...", currentStatus);
+        
+        if (currentStatus === "RESOLVED") {
+          setStatus("DISPATCHED");
+          clearInterval(interval); 
+        }
+      }, 2000); 
+    }
+
+    return () => clearInterval(interval);
+  }, [status, callId]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    // Changed bg-gray-900 to bg-slate-900 to match Admin/Doctor pages exactly
+    <div className="flex flex-col h-screen bg-slate-900 text-white">
+      
+      <Navbar /> {/* <--- 2. ADD NAVBAR HERE */}
+
+      {/* 3. WRAP CONTENT IN FLEX CONTAINER TO KEEP IT CENTERED */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-8">
+        
+        <h1 className="text-3xl font-bold text-red-500 tracking-widest">EMERGENCY SYSTEM</h1>
+        
+        {/* STATE 1: SUCCESS (Green) */}
+        {status === "DISPATCHED" && (
+          <div className="p-10 bg-green-600 rounded-2xl animate-pulse text-center shadow-[0_0_50px_rgba(22,163,74,0.6)]">
+            <h2 className="text-3xl font-bold">HELP IS COMING</h2>
+            <p className="text-lg mt-2 font-semibold">Ambulance Dispatched</p>
+          </div>
+        )}
+
+        {/* STATE 2: WAITING FOR ADMIN (Yellow/Orange) */}
+        {status === "WAITING" && (
+          <div className="w-64 h-64 rounded-full bg-orange-500 flex flex-col items-center justify-center animate-pulse shadow-lg">
+            <h2 className="text-2xl font-bold text-black">SENT</h2>
+            <p className="text-xs text-black font-bold mt-2">WAITING FOR DISPATCH...</p>
+          </div>
+        )}
+
+        {/* STATE 3: IDLE / LOADING (Red) */}
+        {(status === "IDLE" || status === "LOADING") && (
+          <button
+            onClick={handleSOS}
+            disabled={status === "LOADING"}
+            className={`w-64 h-64 rounded-full text-4xl font-black shadow-lg transition-all ${
+              status === "LOADING" ? "bg-red-800 scale-95" : "bg-red-600 hover:scale-105 active:scale-95"
+            }`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            {status === "LOADING" ? "..." : "SOS"}
+          </button>
+        )}
+        
+        <p className="text-gray-400 text-sm max-w-xs text-center">
+          {status === "DISPATCHED" 
+            ? "Stay where you are." 
+            : status === "WAITING" 
+            ? "Operator is reviewing your location." 
+            : "Tap immediately for emergency help."}
+        </p>
+      </div>
     </div>
   );
 }
