@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "mysql"  // <--- Changed from "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -14,11 +14,13 @@ model User {
   name      String
   role      String   @default("PATIENT")
   
+  // Existing Relations
   calls     EmergencyCall[]
-  
-  // --- NEW RELATIONS ---
   appointmentsAsPatient Appointment[] @relation("PatientAppointments")
   appointmentsAsDoctor  Appointment[] @relation("DoctorAppointments")
+
+  // --- NEW RELATION (Fixes your error) ---
+  orders    Order[]
 }
 
 model Appointment {
@@ -46,3 +48,20 @@ model EmergencyCall {
   user      User?    @relation(fields: [userId], references: [id])
 }
 
+model Medicine {
+  id        String   @id @default(cuid())
+  name      String
+  price     Float
+  stock     Int
+  description String?
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  total     Float
+  status    String   @default("PENDING") // PENDING, DELIVERED
+  createdAt DateTime @default(now())
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}

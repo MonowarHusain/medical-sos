@@ -1,106 +1,91 @@
 "use client";
 import { useState, useEffect } from "react";
-import { triggerSOS, checkCallStatus } from "./actions";
-import Navbar from "./components/Navbar"; // <--- 1. IMPORT NAVBAR
+import { useRouter } from "next/navigation";
+import { loginUser, registerUser } from "./actions"; // Note: ./actions
 
-export default function Home() {
-  const [status, setStatus] = useState("IDLE"); // IDLE, LOADING, WAITING, DISPATCHED
-  const [callId, setCallId] = useState<string | null>(null);
+export default function HomePage() {
+  const router = useRouter();
+  const [isRegister, setIsRegister] = useState(false);
+  const [error, setError] = useState("");
 
-  // 1. Handle the Click
-  const handleSOS = () => {
-    setStatus("LOADING");
-
-    const startEmergency = async (lat: number, lng: number) => {
-      const result = await triggerSOS(lat, lng);
-      if (result.success && result.callId) {
-        setCallId(result.callId);
-        setStatus("WAITING"); // Now we wait for Admin
-      } else {
-        alert("Failed to connect.");
-        setStatus("IDLE");
-      }
-    };
-
-    if (!navigator.geolocation) {
-      startEmergency(23.8103, 90.4125); // Demo Location
-      return;
+  // Check if already logged in, redirect immediately
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      const role = user.role.toUpperCase();
+      if (role === "ADMIN") router.push("/admin");
+      else if (role === "DOCTOR") router.push("/appointments");
+      else router.push("/patient");
     }
+  }, []);
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => startEmergency(pos.coords.latitude, pos.coords.longitude),
-      (err) => {
-        alert("GPS Blocked. Sending Demo Location.");
-        startEmergency(23.8103, 90.4125);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    if (isRegister) {
+      const result = await registerUser(formData);
+      if (result.success) {
+        setIsRegister(false); 
+        alert("Account created! Please login.");
+      } else {
+        setError(result.error || "Registration failed");
       }
-    );
+    } else {
+      const result = await loginUser(formData);
+      
+      if (result.success && result.user) {
+        localStorage.setItem("user", JSON.stringify(result.user));
+        
+        const role = result.user.role.toUpperCase();
+
+        if (role === "ADMIN") {
+          router.push("/admin");
+        } else if (role === "DOCTOR") {
+          router.push("/appointments");
+        } else {
+          router.push("/patient"); // <--- Redirects Patient to the new Dashboard
+        }
+
+      } else {
+        setError("Invalid email or password");
+      }
+    }
   };
 
-  // 2. The "Polling" Effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (status === "WAITING" && callId) {
-      interval = setInterval(async () => {
-        const currentStatus = await checkCallStatus(callId);
-        console.log("Checking status...", currentStatus);
-        
-        if (currentStatus === "RESOLVED") {
-          setStatus("DISPATCHED");
-          clearInterval(interval); 
-        }
-      }, 2000); 
-    }
-
-    return () => clearInterval(interval);
-  }, [status, callId]);
-
   return (
-    // Changed bg-gray-900 to bg-slate-900 to match Admin/Doctor pages exactly
-    <div className="flex flex-col h-screen bg-slate-900 text-white">
-      
-      <Navbar /> {/* <--- 2. ADD NAVBAR HERE */}
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+      <div className="bg-gray-800 p-8 rounded-xl shadow-2xl w-96 border border-gray-700">
+        <h1 className="text-2xl font-bold mb-6 text-center text-red-500">
+          {isRegister ? "Join Medical SOS" : "Welcome Back"}
+        </h1>
 
-      {/* 3. WRAP CONTENT IN FLEX CONTAINER TO KEEP IT CENTERED */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-8">
-        
-        <h1 className="text-3xl font-bold text-red-500 tracking-widest">EMERGENCY SYSTEM</h1>
-        
-        {/* STATE 1: SUCCESS (Green) */}
-        {status === "DISPATCHED" && (
-          <div className="p-10 bg-green-600 rounded-2xl animate-pulse text-center shadow-[0_0_50px_rgba(22,163,74,0.6)]">
-            <h2 className="text-3xl font-bold">HELP IS COMING</h2>
-            <p className="text-lg mt-2 font-semibold">Ambulance Dispatched</p>
-          </div>
-        )}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {isRegister && (
+            <input name="name" type="text" placeholder="Full Name" required className="p-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-red-500" />
+          )}
+          
+          <input name="email" type="email" placeholder="Email Address" required className="p-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-red-500" />
+          <input name="password" type="password" placeholder="Password" required className="p-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-red-500" />
 
-        {/* STATE 2: WAITING FOR ADMIN (Yellow/Orange) */}
-        {status === "WAITING" && (
-          <div className="w-64 h-64 rounded-full bg-orange-500 flex flex-col items-center justify-center animate-pulse shadow-lg">
-            <h2 className="text-2xl font-bold text-black">SENT</h2>
-            <p className="text-xs text-black font-bold mt-2">WAITING FOR DISPATCH...</p>
-          </div>
-        )}
+          {isRegister && (
+             <select name="role" className="p-3 rounded bg-gray-700 border border-gray-600">
+               <option value="PATIENT">Patient</option>
+               <option value="DOCTOR">Doctor</option>
+               <option value="ADMIN">Admin</option>
+             </select>
+          )}
 
-        {/* STATE 3: IDLE / LOADING (Red) */}
-        {(status === "IDLE" || status === "LOADING") && (
-          <button
-            onClick={handleSOS}
-            disabled={status === "LOADING"}
-            className={`w-64 h-64 rounded-full text-4xl font-black shadow-lg transition-all ${
-              status === "LOADING" ? "bg-red-800 scale-95" : "bg-red-600 hover:scale-105 active:scale-95"
-            }`}
-          >
-            {status === "LOADING" ? "..." : "SOS"}
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+
+          <button type="submit" className="bg-red-600 text-white font-bold py-3 rounded hover:bg-red-500 transition-all">
+            {isRegister ? "Create Account" : "Login"}
           </button>
-        )}
-        
-        <p className="text-gray-400 text-sm max-w-xs text-center">
-          {status === "DISPATCHED" 
-            ? "Stay where you are." 
-            : status === "WAITING" 
-            ? "Operator is reviewing your location." 
-            : "Tap immediately for emergency help."}
+        </form>
+
+        <p className="text-center mt-6 text-gray-400 text-sm cursor-pointer hover:text-white" onClick={() => setIsRegister(!isRegister)}>
+          {isRegister ? "Already have an account? Login" : "New here? Create Account"}
         </p>
       </div>
     </div>

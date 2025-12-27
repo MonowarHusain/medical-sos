@@ -155,3 +155,27 @@ export async function submitPrescription(appointmentId: string, text: string) {
     return { success: false };
   }
 }
+
+// --- PHARMACY FUNCTIONS ---
+
+export async function getMedicines() {
+  return await prisma.medicine.findMany();
+}
+
+export async function placeOrder(userId: string, total: number) {
+  await prisma.order.create({
+    data: {
+      userId,
+      total,
+      status: "PENDING"
+    }
+  });
+  return { success: true };
+}
+
+export async function getUserOrders(userId: string) {
+  return await prisma.order.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' }
+  });
+}
