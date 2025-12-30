@@ -14,13 +14,20 @@ model User {
   name      String
   role      String   @default("PATIENT")
   
+  // Driver-specific fields
+  phone            String?
+  isAvailable      Boolean  @default(true)
+  currentLatitude  Float?
+  currentLongitude Float?
+  
   // Existing Relations
   calls     EmergencyCall[]
   appointmentsAsPatient Appointment[] @relation("PatientAppointments")
   appointmentsAsDoctor  Appointment[] @relation("DoctorAppointments")
-
-  // --- NEW RELATION (Fixes your error) ---
   orders    Order[]
+  
+  // Driver assignments
+  assignedCalls    EmergencyCall[] @relation("DriverAssignments")
 }
 
 model Appointment {
@@ -46,6 +53,11 @@ model EmergencyCall {
   createdAt DateTime @default(now())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
+  
+  // Driver assignment
+  driverId     String?
+  driver       User?    @relation("DriverAssignments", fields: [driverId], references: [id])
+  driverStatus String?  // ASSIGNED, EN_ROUTE, ARRIVED, COMPLETED
 }
 
 model Medicine {
