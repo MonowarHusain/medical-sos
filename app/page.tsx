@@ -17,6 +17,7 @@ export default function HomePage() {
       if (role === "ADMIN") router.push("/admin");
       else if (role === "DOCTOR") router.push("/appointments");
       else if (role === "DRIVER") router.push("/driver");
+      else if (role === "DELIVERY_MAN") router.push("/delivery");
       else router.push("/patient");
     }
   }, []);
@@ -47,6 +48,8 @@ export default function HomePage() {
           router.push("/appointments");
         } else if (role === "DRIVER") {
           router.push("/driver");
+        } else if (role === "DELIVERY_MAN") {
+          router.push("/delivery");
         } else {
           router.push("/patient");
         }
@@ -77,6 +80,7 @@ export default function HomePage() {
               <option value="PATIENT">Patient</option>
               <option value="DOCTOR">Doctor</option>
               <option value="DRIVER">Ambulance Driver</option>
+              <option value="DELIVERY_MAN">Medicine Delivery</option>
               <option value="ADMIN">Admin</option>
             </select>
           )}

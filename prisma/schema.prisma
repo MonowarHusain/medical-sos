@@ -28,6 +28,9 @@ model User {
   
   // Driver assignments
   assignedCalls    EmergencyCall[] @relation("DriverAssignments")
+  
+  // Delivery assignments
+  assignedOrders   Order[]         @relation("DeliveryAssignments")
 }
 
 model Appointment {
@@ -71,9 +74,15 @@ model Medicine {
 model Order {
   id        String   @id @default(cuid())
   total     Float
-  status    String   @default("PENDING") // PENDING, DELIVERED
+  status    String   @default("PENDING") // PENDING, ASSIGNED, OUT_FOR_DELIVERY, DELIVERED
   createdAt DateTime @default(now())
   
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+  
+  // Delivery assignment
+  deliveryManId     String?
+  deliveryMan       User?    @relation("DeliveryAssignments", fields: [deliveryManId], references: [id])
+  deliveryStatus    String?  // ASSIGNED, PICKED_UP, OUT_FOR_DELIVERY, DELIVERED
+  deliveryAddress   String?
 }

@@ -24,7 +24,8 @@ export default function Navbar() {
   const homeLink = user.role === "ADMIN" ? "/admin"
     : user.role === "DOCTOR" ? "/appointments"
       : user.role === "DRIVER" ? "/driver"
-        : "/patient";
+        : user.role === "DELIVERY_MAN" ? "/delivery"
+          : "/patient";
 
   return (
     <nav className="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center text-white mb-6 shadow-md">

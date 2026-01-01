@@ -162,12 +162,13 @@ export async function getMedicines() {
   return await prisma.medicine.findMany();
 }
 
-export async function placeOrder(userId: string, total: number) {
+export async function placeOrder(userId: string, total: number, address: string) {
   await prisma.order.create({
     data: {
       userId,
       total,
-      status: "PENDING"
+      status: "PENDING",
+      deliveryAddress: address
     }
   });
   return { success: true };
@@ -176,7 +177,119 @@ export async function placeOrder(userId: string, total: number) {
 export async function getUserOrders(userId: string) {
   return await prisma.order.findMany({
     where: { userId },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    include: {
+      deliveryMan: {
+        select: { name: true, phone: true }
+      }
+    }
+  });
+}
+
+// --- DELIVERY MAN FUNCTIONS ---
+
+// Get all available delivery personnel
+export async function getAvailableDeliveryMen() {
+  return await prisma.user.findMany({
+    where: {
+      role: "DELIVERY_MAN",
+      isAvailable: true
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true
+    }
+  });
+}
+
+// Admin assigns a delivery man to an order
+export async function assignDeliveryManToOrder(orderId: string, deliveryManId: string) {
+  try {
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        deliveryManId,
+        deliveryStatus: "ASSIGNED",
+        status: "ASSIGNED"
+      }
+    });
+
+    // Mark delivery man as busy
+    await prisma.user.update({
+      where: { id: deliveryManId },
+      data: { isAvailable: false }
+    });
+
+    revalidatePath("/admin/orders");
+    revalidatePath("/delivery");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false };
+  }
+}
+
+// Get orders assigned to a specific delivery man
+export async function getDeliveryManAssignedOrders(deliveryManId: string) {
+  return await prisma.order.findMany({
+    where: { deliveryManId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: {
+        select: { name: true, phone: true }
+      }
+    }
+  });
+}
+
+// Delivery man updates order status
+export async function updateOrderDeliveryStatus(orderId: string, deliveryStatus: string, deliveryManId?: string) {
+  try {
+    const updateData: any = { deliveryStatus };
+
+    // If delivered, also mark the main status as DELIVERED
+    if (deliveryStatus === "DELIVERED") {
+      updateData.status = "DELIVERED";
+    } else if (deliveryStatus === "OUT_FOR_DELIVERY") {
+      updateData.status = "OUT_FOR_DELIVERY";
+    }
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: updateData
+    });
+
+    // If delivered, mark delivery man as available again
+    if (deliveryStatus === "DELIVERED" && deliveryManId) {
+      await prisma.user.update({
+        where: { id: deliveryManId },
+        data: { isAvailable: true }
+      });
+    }
+
+    revalidatePath("/delivery");
+    revalidatePath("/admin/orders");
+    revalidatePath("/pharmacy");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false };
+  }
+}
+
+// Get orders with delivery info (for admin)
+export async function getOrdersWithDelivery() {
+  return await prisma.order.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: {
+        select: { name: true, email: true }
+      },
+      deliveryMan: {
+        select: { id: true, name: true, phone: true }
+      }
+    }
   });
 }
 
