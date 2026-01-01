@@ -80,7 +80,7 @@ export async function loginUser(formData: FormData) {
     // For this demo, we return the user info to save in LocalStorage.
     return { success: true, user: { id: user.id, name: user.name, role: user.role } };
   }
-  
+
   return { success: false };
 }
 
@@ -130,12 +130,12 @@ export async function updateUserProfile(userId: string, formData: FormData) {
   const name = formData.get("name") as string;
   const password = formData.get("password") as string;
   // In a real app, validation goes here
-  
+
   await prisma.user.update({
     where: { id: userId },
     data: { name, password }
   });
-  
+
   return { success: true };
 }
 
@@ -145,7 +145,7 @@ export async function submitPrescription(appointmentId: string, text: string) {
   try {
     await prisma.appointment.update({
       where: { id: appointmentId },
-      data: { 
+      data: {
         prescription: text,
         status: "COMPLETED" // Auto-mark as completed
       }
@@ -177,5 +177,137 @@ export async function getUserOrders(userId: string) {
   return await prisma.order.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' }
+  });
+}
+
+// --- DRIVER FUNCTIONS ---
+
+// Get all available drivers
+export async function getAvailableDrivers() {
+  return await prisma.user.findMany({
+    where: {
+      role: "DRIVER",
+      isAvailable: true
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      currentLatitude: true,
+      currentLongitude: true
+    }
+  });
+}
+
+// Admin assigns a driver to a call
+export async function assignDriverToCall(callId: string, driverId: string) {
+  try {
+    await prisma.emergencyCall.update({
+      where: { id: callId },
+      data: {
+        driverId,
+        driverStatus: "ASSIGNED",
+        status: "DISPATCHED"
+      }
+    });
+
+    // Mark driver as busy
+    await prisma.user.update({
+      where: { id: driverId },
+      data: { isAvailable: false }
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/driver");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false };
+  }
+}
+
+// Get calls assigned to a specific driver
+export async function getDriverAssignedCalls(driverId: string) {
+  return await prisma.emergencyCall.findMany({
+    where: { driverId },
+    orderBy: { createdAt: 'desc' }
+  });
+}
+
+// Toggle driver availability
+export async function updateDriverStatus(driverId: string, isAvailable: boolean) {
+  try {
+    await prisma.user.update({
+      where: { id: driverId },
+      data: { isAvailable }
+    });
+    revalidatePath("/driver");
+    return { success: true };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+// Update driver's current location
+export async function updateDriverLocation(driverId: string, lat: number, lng: number) {
+  try {
+    await prisma.user.update({
+      where: { id: driverId },
+      data: {
+        currentLatitude: lat,
+        currentLongitude: lng
+      }
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+// Driver updates call status (EN_ROUTE, ARRIVED, COMPLETED)
+export async function updateCallDriverStatus(callId: string, driverStatus: string, driverId?: string) {
+  try {
+    const updateData: any = { driverStatus };
+
+    // If completed, also mark the main status as RESOLVED
+    if (driverStatus === "COMPLETED") {
+      updateData.status = "RESOLVED";
+    }
+
+    await prisma.emergencyCall.update({
+      where: { id: callId },
+      data: updateData
+    });
+
+    // If completed, mark driver as available again
+    if (driverStatus === "COMPLETED" && driverId) {
+      await prisma.user.update({
+        where: { id: driverId },
+        data: { isAvailable: true }
+      });
+    }
+
+    revalidatePath("/driver");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false };
+  }
+}
+
+// Get emergency calls with driver info (for admin)
+export async function getEmergencyCallsWithDrivers() {
+  return await prisma.emergencyCall.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      driver: {
+        select: {
+          id: true,
+          name: true,
+          phone: true
+        }
+      }
+    }
   });
 }

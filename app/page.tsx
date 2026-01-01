@@ -16,6 +16,7 @@ export default function HomePage() {
       const role = user.role.toUpperCase();
       if (role === "ADMIN") router.push("/admin");
       else if (role === "DOCTOR") router.push("/appointments");
+      else if (role === "DRIVER") router.push("/driver");
       else router.push("/patient");
     }
   }, []);
@@ -23,29 +24,31 @@ export default function HomePage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
+
     if (isRegister) {
       const result = await registerUser(formData);
       if (result.success) {
-        setIsRegister(false); 
+        setIsRegister(false);
         alert("Account created! Please login.");
       } else {
         setError(result.error || "Registration failed");
       }
     } else {
       const result = await loginUser(formData);
-      
+
       if (result.success && result.user) {
         localStorage.setItem("user", JSON.stringify(result.user));
-        
+
         const role = result.user.role.toUpperCase();
 
         if (role === "ADMIN") {
           router.push("/admin");
         } else if (role === "DOCTOR") {
           router.push("/appointments");
+        } else if (role === "DRIVER") {
+          router.push("/driver");
         } else {
-          router.push("/patient"); // <--- Redirects Patient to the new Dashboard
+          router.push("/patient");
         }
 
       } else {
@@ -65,16 +68,17 @@ export default function HomePage() {
           {isRegister && (
             <input name="name" type="text" placeholder="Full Name" required className="p-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-red-500" />
           )}
-          
+
           <input name="email" type="email" placeholder="Email Address" required className="p-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-red-500" />
           <input name="password" type="password" placeholder="Password" required className="p-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-red-500" />
 
           {isRegister && (
-             <select name="role" className="p-3 rounded bg-gray-700 border border-gray-600">
-               <option value="PATIENT">Patient</option>
-               <option value="DOCTOR">Doctor</option>
-               <option value="ADMIN">Admin</option>
-             </select>
+            <select name="role" className="p-3 rounded bg-gray-700 border border-gray-600">
+              <option value="PATIENT">Patient</option>
+              <option value="DOCTOR">Doctor</option>
+              <option value="DRIVER">Ambulance Driver</option>
+              <option value="ADMIN">Admin</option>
+            </select>
           )}
 
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}

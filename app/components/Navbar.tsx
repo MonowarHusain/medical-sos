@@ -21,9 +21,10 @@ export default function Navbar() {
   if (!user) return null;
 
   // Correct Home Links for new structure
-  const homeLink = user.role === "ADMIN" ? "/admin" 
-                 : user.role === "DOCTOR" ? "/appointments" 
-                 : "/patient"; // <--- Updated to /patient
+  const homeLink = user.role === "ADMIN" ? "/admin"
+    : user.role === "DOCTOR" ? "/appointments"
+      : user.role === "DRIVER" ? "/driver"
+        : "/patient";
 
   return (
     <nav className="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center text-white mb-6 shadow-md">
@@ -43,17 +44,17 @@ export default function Navbar() {
           </a>
           {user.role === "PATIENT" && (
             <>
-                <a href="/appointments" className="px-3 py-2 bg-blue-900 hover:bg-blue-800 rounded transition text-xs sm:text-sm">
-                    Appts
-            </a>
-            <a href="/pharmacy" className="px-3 py-2 bg-green-900 hover:bg-green-800 rounded transition text-xs sm:text-sm border border-green-700">
+              <a href="/appointments" className="px-3 py-2 bg-blue-900 hover:bg-blue-800 rounded transition text-xs sm:text-sm">
+                Appts
+              </a>
+              <a href="/pharmacy" className="px-3 py-2 bg-green-900 hover:bg-green-800 rounded transition text-xs sm:text-sm border border-green-700">
                 Pharmacy
-            </a>
-    </>
-)}
-          
-          <button 
-            onClick={handleLogout} 
+              </a>
+            </>
+          )}
+
+          <button
+            onClick={handleLogout}
             className="px-3 py-2 bg-red-900 hover:bg-red-700 rounded transition border border-red-800"
           >
             Logout
