@@ -59,7 +59,7 @@ export default function AppointmentsPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-10">
-          
+
           {/* LEFT: Booking Form (Only for PATIENT) */}
           {isPatient && (
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 h-fit shadow-lg">
@@ -84,7 +84,7 @@ export default function AppointmentsPage() {
             <h2 className="text-xl font-bold mb-4">
               {isDoctor ? "Patient Queue" : "Upcoming Visits"}
             </h2>
-            
+
             <div className="space-y-4">
               {appointments.map((apt) => (
                 <div key={apt.id} className="bg-slate-700 p-4 rounded-lg border border-slate-600">
@@ -93,6 +93,7 @@ export default function AppointmentsPage() {
                       <p className="font-bold text-lg text-slate-100">{apt.reason}</p>
                       <p className="text-sm text-gray-400">{new Date(apt.date).toLocaleString()}</p>
                       {isDoctor && <p className="text-xs text-blue-300 mt-1">Patient: {apt.patient?.name || "Unknown"}</p>}
+                      {isPatient && <p className="text-xs text-green-300 mt-1">Doctor: {apt.doctor?.name || "Pending Assignment"}</p>}
                     </div>
                     <span className={`text-xs px-2 py-1 rounded font-bold border ${apt.status === 'COMPLETED' ? 'bg-green-900 text-green-200 border-green-700' : 'bg-yellow-900 text-yellow-200 border-yellow-700'}`}>
                       {apt.status}
@@ -102,7 +103,7 @@ export default function AppointmentsPage() {
                   {/* PRESCRIPTION DISPLAY */}
                   {apt.prescription && (
                     <div className="mt-3 bg-slate-800 p-3 rounded border border-slate-600 animate-pulse">
-                       {/* animate-pulse helps show it's "fresh" */}
+                      {/* animate-pulse helps show it's "fresh" */}
                       <p className="text-xs text-gray-400 uppercase font-bold mb-1">💊 Prescription:</p>
                       <p className="text-green-300 font-mono text-sm">{apt.prescription}</p>
                     </div>
@@ -111,18 +112,18 @@ export default function AppointmentsPage() {
                   {/* DOCTOR INPUT (Only if no prescription yet) */}
                   {isDoctor && !apt.prescription && (
                     <form action={async (formData) => {
-                        const text = formData.get("text") as string;
-                        await submitPrescription(apt.id, text);
-                        // No reload needed
+                      const text = formData.get("text") as string;
+                      await submitPrescription(apt.id, text);
+                      // No reload needed
                     }} className="mt-3 flex gap-2">
                       <input name="text" placeholder="Write Rx..." className="flex-1 p-2 bg-slate-900 rounded text-sm text-white border border-slate-600" required />
                       <button className="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-sm font-bold">Send</button>
                     </form>
                   )}
-                  
+
                 </div>
               ))}
-              
+
               {appointments.length === 0 && <p className="text-gray-500 italic">No appointments found.</p>}
             </div>
           </div>

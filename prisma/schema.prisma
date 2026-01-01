@@ -48,6 +48,9 @@ model Appointment {
   
   doctorId     String?
   doctor       User?    @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  
+  createdAt    DateTime @default(now())    // When patient booked
+  prescribedAt DateTime?                   // When doctor prescribed
 }
 
 // (Keep your EmergencyCall model as it is)
@@ -72,6 +75,7 @@ model Medicine {
   price     Float
   stock     Int
   description String?
+  orderItems OrderItem[]
 }
 
 model Order {
@@ -83,11 +87,25 @@ model Order {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   
+  items     OrderItem[]
+  
   // Delivery assignment
   deliveryManId     String?
   deliveryMan       User?    @relation("DeliveryAssignments", fields: [deliveryManId], references: [id])
   deliveryStatus    String?  // ASSIGNED, PICKED_UP, OUT_FOR_DELIVERY, DELIVERED
   deliveryAddress   String?
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  price     Float    // Price at time of purchase
+  
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
 }
 
 model HealthCard {

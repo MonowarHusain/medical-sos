@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { getEmergencyCallsWithDrivers, getAvailableDrivers, assignDriverToCall, resolveCall } from "../actions";
-import Navbar from "../components/Navbar";
+// Navbar import removed
 
 type Driver = {
   id: string;
@@ -17,6 +17,10 @@ type Call = {
   driverStatus: string | null;
   createdAt: Date;
   driver: Driver | null;
+  user: {
+    name: string;
+    phone: string | null;
+  } | null;
 };
 
 export default function AdminPage() {
@@ -78,7 +82,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white">
 
-      <Navbar />
+
 
       <div className="p-10">
         <div className="flex justify-between items-center mb-8">
@@ -111,9 +115,22 @@ export default function AdminPage() {
                       <span className={`px-2 py-1 rounded text-xs font-bold ${statusBadge.bg}`}>
                         {statusBadge.label}
                       </span>
-                      <span className="text-slate-400 text-sm">{new Date(call.createdAt).toLocaleTimeString()}</span>
+                      <span className="text-slate-400 text-sm font-mono">
+                        {new Date(call.createdAt).toLocaleString()}
+                      </span>
                     </div>
-                    <p className="font-mono text-slate-300">📍 Lat: {call.latitude.toFixed(4)} / Lng: {call.longitude.toFixed(4)}</p>
+
+                    {/* Patient Info */}
+                    <div className="mb-2">
+                      {call.user ? (
+                        <p className="text-lg font-bold text-white">
+                          🆘 {call.user.name} <span className="text-sm font-normal text-slate-400">({call.user.phone || 'No Phone'})</span>
+                        </p>
+                      ) : (
+                        <p className="text-lg font-bold text-white">🆘 Unknown Patient</p>
+                      )}
+                      <p className="font-mono text-slate-300 text-sm mt-1">📍 Lat: {call.latitude.toFixed(4)} / Lng: {call.longitude.toFixed(4)}</p>
+                    </div>
 
                     {/* Driver Info */}
                     {call.driver && (
@@ -148,8 +165,8 @@ export default function AdminPage() {
                       <button
                         onClick={() => handleDispatch(call.id)}
                         className={`px-6 py-3 rounded-lg font-bold shadow-lg transition-all active:scale-95 ${selectedDrivers[call.id]
-                            ? "bg-amber-600 hover:bg-amber-500 text-white"
-                            : "bg-blue-600 hover:bg-blue-500 text-white"
+                          ? "bg-amber-600 hover:bg-amber-500 text-white"
+                          : "bg-blue-600 hover:bg-blue-500 text-white"
                           }`}
                       >
                         {selectedDrivers[call.id] ? "ASSIGN DRIVER" : "QUICK DISPATCH"}

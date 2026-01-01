@@ -17,6 +17,10 @@ type EmergencyCall = {
     status: string;
     driverStatus: string | null;
     createdAt: Date;
+    user?: {
+        name: string;
+        phone: string | null;
+    };
 };
 
 export default function DriverDashboard() {
@@ -143,8 +147,8 @@ export default function DriverDashboard() {
                         <button
                             onClick={handleToggleAvailability}
                             className={`px-6 py-3 rounded-lg font-bold transition-all shadow-lg ${isAvailable
-                                    ? "bg-green-600 hover:bg-green-500 shadow-green-900/50"
-                                    : "bg-red-700 hover:bg-red-600 shadow-red-900/50"
+                                ? "bg-green-600 hover:bg-green-500 shadow-green-900/50"
+                                : "bg-red-700 hover:bg-red-600 shadow-red-900/50"
                                 }`}
                         >
                             {isAvailable ? "✅ Available" : "🔴 Unavailable"}
@@ -201,6 +205,19 @@ export default function DriverDashboard() {
                                                 <p className="font-mono text-slate-300 text-lg">
                                                     📍 Lat: {call.latitude.toFixed(4)} / Lng: {call.longitude.toFixed(4)}
                                                 </p>
+
+                                                {/* Patient Details */}
+                                                {call.user && (
+                                                    <div className="mt-2 bg-slate-900/50 p-2 rounded border border-slate-700">
+                                                        <p className="text-sm font-bold text-white">👤 {call.user.name}</p>
+                                                        {call.user.phone && (
+                                                            <a href={`tel:${call.user.phone}`} className="text-blue-400 text-sm hover:underline block mt-1">
+                                                                📞 {call.user.phone}
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 <a
                                                     href={`https://www.google.com/maps?q=${call.latitude},${call.longitude}`}
                                                     target="_blank"

@@ -6,15 +6,19 @@ import { revalidatePath } from "next/cache";
 const prisma = new PrismaClient();
 
 // 1. Trigger SOS (Returns the Call ID now)
-export async function triggerSOS(lat: number, lng: number) {
+export async function triggerSOS(lat: number, lng: number, userId?: string) {
   try {
-    const call = await prisma.emergencyCall.create({
-      data: {
-        latitude: lat,
-        longitude: lng,
-        status: "PENDING",
-      },
-    });
+    const data: any = {
+      latitude: lat,
+      longitude: lng,
+      status: "PENDING",
+    };
+
+    if (userId) {
+      data.userId = userId;
+    }
+
+    const call = await prisma.emergencyCall.create({ data });
     revalidatePath("/admin");
     return { success: true, callId: call.id }; // <--- Returning ID is key!
   } catch (error) {
@@ -46,6 +50,18 @@ export async function resolveCall(id: string) {
     data: { status: "RESOLVED" },
   });
   revalidatePath("/admin");
+}
+
+export async function getPatientCalls(userId: string) {
+  return await prisma.emergencyCall.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      driver: {
+        select: { name: true, phone: true }
+      }
+    }
+  });
 }
 // ... keep your existing SOS functions (triggerSOS, etc.) above ...
 
@@ -91,12 +107,24 @@ export async function bookAppointment(formData: FormData) {
   const reason = formData.get("reason") as string;
   const date = formData.get("date") as string;
 
+  // Validate date is in the future
+  const selectedDate = new Date(date);
+  const now = new Date();
+
+  // Allow a small buffer (e.g. 1 minute) or just strictly check
+  if (selectedDate < now) {
+    console.error("Attempted to book past date");
+    // In a real app we'd throw or return specific error
+    return { success: false };
+  }
+
   await prisma.appointment.create({
     data: {
       patientId,
       reason,
       date,
-      status: "CONFIRMED" // Auto-confirm for demo
+      status: "CONFIRMED", // Auto-confirm for demo
+      createdAt: new Date(),
     }
   });
   return { success: true };
@@ -147,7 +175,8 @@ export async function submitPrescription(appointmentId: string, text: string) {
       where: { id: appointmentId },
       data: {
         prescription: text,
-        status: "COMPLETED" // Auto-mark as completed
+        status: "COMPLETED", // Auto-mark as completed
+        prescribedAt: new Date()
       }
     });
     return { success: true };
@@ -158,33 +187,70 @@ export async function submitPrescription(appointmentId: string, text: string) {
 
 // --- PHARMACY FUNCTIONS ---
 
+// 1. Get List of Medicines
 export async function getMedicines() {
   return await prisma.medicine.findMany();
 }
 
-export async function placeOrder(userId: string, total: number, address: string) {
-  await prisma.order.create({
-    data: {
-      userId,
-      total,
-      status: "PENDING",
-      deliveryAddress: address
-    }
-  });
-  return { success: true };
+// 2. Place Order (with multiple items)
+export async function placeOrder(userId: string, items: { medicineId: string; quantity: number; price: number }[], total: number, address: string) {
+  try {
+    // value-check
+    if (!items || items.length === 0) return { success: false, error: "No items in cart" };
+
+    // Transaction to ensure order and items are created together
+    await prisma.$transaction(async (tx) => {
+      // Create Order
+      const order = await tx.order.create({
+        data: {
+          userId,
+          total,
+          status: "PENDING",
+          deliveryAddress: address,
+          createdAt: new Date()
+        }
+      });
+
+      // Create OrderItems
+      for (const item of items) {
+        await tx.orderItem.create({
+          data: {
+            orderId: order.id,
+            medicineId: item.medicineId,
+            quantity: item.quantity,
+            price: item.price
+          }
+        });
+      }
+    });
+
+    revalidatePath("/pharmacy");
+    revalidatePath("/admin/orders");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "Failed to place order" };
+  }
 }
 
+// 3. Get User Orders (Including Items)
 export async function getUserOrders(userId: string) {
   return await prisma.order.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
     include: {
+      items: {
+        include: {
+          medicine: true
+        }
+      },
       deliveryMan: {
         select: { name: true, phone: true }
       }
     }
   });
 }
+
 
 // --- DELIVERY MAN FUNCTIONS ---
 
@@ -286,6 +352,11 @@ export async function getOrdersWithDelivery() {
       user: {
         select: { name: true, email: true }
       },
+      items: {
+        include: {
+          medicine: true
+        }
+      },
       deliveryMan: {
         select: { id: true, name: true, phone: true }
       }
@@ -340,10 +411,16 @@ export async function assignDriverToCall(callId: string, driverId: string) {
 }
 
 // Get calls assigned to a specific driver
+// Get calls assigned to a specific driver
 export async function getDriverAssignedCalls(driverId: string) {
   return await prisma.emergencyCall.findMany({
     where: { driverId },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: {
+        select: { name: true, phone: true }
+      }
+    }
   });
 }
 
@@ -409,7 +486,7 @@ export async function updateCallDriverStatus(callId: string, driverStatus: strin
   }
 }
 
-// Get emergency calls with driver info (for admin)
+// Get emergency calls with driver AND patient info (for admin)
 export async function getEmergencyCallsWithDrivers() {
   return await prisma.emergencyCall.findMany({
     orderBy: { createdAt: 'desc' },
@@ -420,12 +497,32 @@ export async function getEmergencyCallsWithDrivers() {
           name: true,
           phone: true
         }
+      },
+      user: {
+        select: {
+          name: true,
+          phone: true
+        }
       }
     }
   });
 }
 
-// --- HEALTH CARD FUNCTIONS ---
+// 6. Get All Appointments (Centralized Admin View)
+export async function getAllAppointments() {
+  return await prisma.appointment.findMany({
+    orderBy: { date: 'desc' },
+    include: {
+      patient: {
+        select: { name: true, email: true }
+      },
+      doctor: {
+        select: { name: true }
+      }
+    }
+  });
+}
+
 
 // Get patient's health card
 export async function getHealthCard(userId: string) {
@@ -479,4 +576,95 @@ export async function saveHealthCard(userId: string, formData: FormData) {
     console.error(error);
     return { success: false };
   }
+}
+// --- NEW ADMIN DASHBOARD FUNCTIONS ---
+
+// 1. Get All Doctors
+export async function getAllDoctors() {
+  return await prisma.user.findMany({
+    where: { role: "DOCTOR" },
+    include: {
+      appointmentsAsDoctor: {
+        include: {
+          patient: {
+            select: { name: true, email: true }
+          }
+        },
+        orderBy: { date: 'desc' }
+      }
+    }
+  });
+}
+
+// 2. Get All Patients
+export async function getAllPatients() {
+  return await prisma.user.findMany({
+    where: { role: "PATIENT" },
+    include: {
+      healthCard: true,
+      appointmentsAsPatient: {
+        include: {
+          doctor: {
+            select: { name: true }
+          }
+        },
+        orderBy: { date: 'desc' }
+      },
+      orders: {
+        orderBy: { createdAt: 'desc' },
+        take: 5 // Last 5 orders
+      }
+    }
+  });
+}
+
+// 3. Get All Drivers (Detailed)
+export async function getAllDrivers() {
+  return await prisma.user.findMany({
+    where: { role: "DRIVER" },
+    include: {
+      assignedCalls: {
+        orderBy: { createdAt: 'desc' }
+      }
+    }
+  });
+}
+
+// 4. Get All Delivery Men (Detailed)
+export async function getAllDeliveryMen() {
+  return await prisma.user.findMany({
+    where: { role: "DELIVERY_MAN" },
+    include: {
+      assignedOrders: {
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: { name: true, phone: true }
+          }
+        }
+      }
+    }
+  });
+}
+// 6. Get Pending Counts for Notifications
+export async function getPendingCounts() {
+  const pendingSOS = await prisma.emergencyCall.count({
+    where: { status: "PENDING" }
+  });
+
+  const pendingOrders = await prisma.order.count({
+    where: { status: "PENDING" }
+  });
+
+  return { sos: pendingSOS, orders: pendingOrders };
+}
+// 5. Get Doctor Prescriptions (Helper)
+export async function getDoctorPrescriptions(doctorId: string) {
+  return await prisma.appointment.findMany({
+    where: { doctorId, prescription: { not: null } },
+    include: {
+      patient: { select: { name: true } }
+    },
+    orderBy: { date: 'desc' }
+  });
 }
