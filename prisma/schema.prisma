@@ -31,6 +31,9 @@ model User {
   
   // Delivery assignments
   assignedOrders   Order[]         @relation("DeliveryAssignments")
+  
+  // Health Card
+  healthCard       HealthCard?
 }
 
 model Appointment {
@@ -85,4 +88,34 @@ model Order {
   deliveryMan       User?    @relation("DeliveryAssignments", fields: [deliveryManId], references: [id])
   deliveryStatus    String?  // ASSIGNED, PICKED_UP, OUT_FOR_DELIVERY, DELIVERED
   deliveryAddress   String?
+}
+
+model HealthCard {
+  id              String   @id @default(cuid())
+  
+  // Basic Info
+  dateOfBirth     String?
+  bloodType       String?  // A+, A-, B+, B-, AB+, AB-, O+, O-
+  height          String?  // e.g., "5'8" or "172cm"
+  weight          String?  // e.g., "70kg"
+  
+  // Medical Info
+  allergies       String?  // Comma-separated or text
+  conditions      String?  // Chronic conditions
+  medications     String?  // Current medications
+  
+  // Emergency Contact
+  emergencyName   String?
+  emergencyPhone  String?
+  emergencyRelation String?
+  
+  // Insurance
+  insuranceProvider String?
+  insuranceNumber   String?
+  
+  // Link to User
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  
+  updatedAt       DateTime @updatedAt
 }

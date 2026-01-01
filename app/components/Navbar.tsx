@@ -45,6 +45,9 @@ export default function Navbar() {
           </a>
           {user.role === "PATIENT" && (
             <>
+              <a href="/healthcard" className="px-3 py-2 bg-red-900 hover:bg-red-800 rounded transition text-xs sm:text-sm border border-red-700">
+                Health Card
+              </a>
               <a href="/appointments" className="px-3 py-2 bg-blue-900 hover:bg-blue-800 rounded transition text-xs sm:text-sm">
                 Appts
               </a>

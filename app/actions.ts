@@ -424,3 +424,59 @@ export async function getEmergencyCallsWithDrivers() {
     }
   });
 }
+
+// --- HEALTH CARD FUNCTIONS ---
+
+// Get patient's health card
+export async function getHealthCard(userId: string) {
+  return await prisma.healthCard.findUnique({
+    where: { userId }
+  });
+}
+
+// Create or update health card
+export async function saveHealthCard(userId: string, formData: FormData) {
+  try {
+    const data = {
+      dateOfBirth: formData.get("dateOfBirth") as string || null,
+      bloodType: formData.get("bloodType") as string || null,
+      height: formData.get("height") as string || null,
+      weight: formData.get("weight") as string || null,
+      allergies: formData.get("allergies") as string || null,
+      conditions: formData.get("conditions") as string || null,
+      medications: formData.get("medications") as string || null,
+      emergencyName: formData.get("emergencyName") as string || null,
+      emergencyPhone: formData.get("emergencyPhone") as string || null,
+      emergencyRelation: formData.get("emergencyRelation") as string || null,
+      insuranceProvider: formData.get("insuranceProvider") as string || null,
+      insuranceNumber: formData.get("insuranceNumber") as string || null,
+    };
+
+    // Check if health card exists
+    const existing = await prisma.healthCard.findUnique({
+      where: { userId }
+    });
+
+    if (existing) {
+      // Update existing
+      await prisma.healthCard.update({
+        where: { userId },
+        data
+      });
+    } else {
+      // Create new
+      await prisma.healthCard.create({
+        data: {
+          ...data,
+          userId
+        }
+      });
+    }
+
+    revalidatePath("/healthcard");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false };
+  }
+}
