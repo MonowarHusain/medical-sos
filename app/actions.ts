@@ -668,3 +668,69 @@ export async function getDoctorPrescriptions(doctorId: string) {
     orderBy: { date: 'desc' }
   });
 }
+
+// --- MEDICINE ADMIN FUNCTIONS ---
+
+// Add a new medicine
+export async function addMedicine(data: {
+  name: string;
+  price: number;
+  stock: number;
+  description?: string;
+}) {
+  try {
+    await prisma.medicine.create({
+      data: {
+        name: data.name,
+        price: data.price,
+        stock: data.stock,
+        description: data.description || null,
+      },
+    });
+    revalidatePath("/admin/pharmacy");
+    revalidatePath("/pharmacy");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "Failed to add medicine" };
+  }
+}
+
+// Update an existing medicine
+export async function updateMedicine(
+  id: string,
+  data: {
+    name?: string;
+    price?: number;
+    stock?: number;
+    description?: string;
+  }
+) {
+  try {
+    await prisma.medicine.update({
+      where: { id },
+      data,
+    });
+    revalidatePath("/admin/pharmacy");
+    revalidatePath("/pharmacy");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "Failed to update medicine" };
+  }
+}
+
+// Delete a medicine
+export async function deleteMedicine(id: string) {
+  try {
+    await prisma.medicine.delete({
+      where: { id },
+    });
+    revalidatePath("/admin/pharmacy");
+    revalidatePath("/pharmacy");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "Failed to delete medicine" };
+  }
+}

@@ -37,6 +37,8 @@ export default function LoginPage() {
           router.push("/appointments");
         } else if (role === "DRIVER") {
           router.push("/driver");
+        } else if (role === "DELIVERY_MAN") {
+          router.push("/delivery");
         } else {
           router.push("/");
         }
@@ -54,7 +56,7 @@ export default function LoginPage() {
           {isRegister ? "Join Medical SOS" : "Welcome Back"}
         </h1>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4" suppressHydrationWarning>
           {isRegister && (
             <input name="name" type="text" placeholder="Full Name" required className="p-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-red-500" />
           )}
@@ -68,6 +70,7 @@ export default function LoginPage() {
               <option value="PATIENT">Patient</option>
               <option value="DOCTOR">Doctor</option>
               <option value="DRIVER">Ambulance Driver</option>
+              <option value="DELIVERY_MAN">Delivery Man</option>
               <option value="ADMIN">Admin</option>
             </select>
           )}

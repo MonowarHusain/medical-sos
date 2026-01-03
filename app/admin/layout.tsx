@@ -38,6 +38,7 @@ export default function AdminLayout({
                     <NavLink href="/admin/patients" icon="🤒" label="Patients" />
                     <NavLink href="/admin/appointments" icon="📅" label="Appointments" />
                     <NavLink href="/admin/drivers" icon="🚑" label="Ambulance Drivers" />
+                    <NavLink href="/admin/pharmacy" icon="💊" label="Pharmacy" />
                     <NavLink href="/admin/orders" icon="📦" label="Delivery" count={counts.orders} />
                 </nav>
 
