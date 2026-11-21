@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { loginUser, registerUser } from "../actions";
+import { getRoleRoute } from "@/lib/roleRoutes";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,19 +18,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("PATIENT");
 
-  const redirectByRole = (userRole: string) => {
-    const normalized = userRole?.toUpperCase();
-    if (normalized === "ADMIN") {
-      router.push("/admin");
-    } else if (normalized === "DOCTOR") {
-      router.push("/appointments");
-    } else if (normalized === "DRIVER") {
-      router.push("/driver");
-    } else if (normalized === "DELIVERY" || normalized === "DELIVERY_MAN") {
-      router.push("/delivery");
-    } else {
-      router.push("/patient");
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed?.role) {
+          router.replace(getRoleRoute(parsed.role));
+        }
+      }
+    } catch {
+      // Keep on login page
     }
+  }, [router]);
+
+  const redirectByRole = (userRole: string) => {
+    router.push(getRoleRoute(userRole));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

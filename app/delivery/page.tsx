@@ -9,6 +9,7 @@ import {
   updateOrderDeliveryStatus,
   getUserProfile,
 } from "../actions";
+import { getRoleRoute } from "@/lib/roleRoutes";
 import Navbar from "../components/Navbar";
 
 type Order = {
@@ -34,28 +35,41 @@ export default function DeliveryDashboard() {
   const [feedback, setFeedback] = useState<{ type: "success" | "info"; text: string } | null>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        const parsedRole = parsed.role?.toUpperCase();
-        if (parsedRole !== "DELIVERY_MAN" && parsedRole !== "DELIVERY") {
-          router.push("/");
-          return;
-        }
-        setUser(parsed);
-
-        getUserProfile(parsed.id).then((profile) => {
-          if (profile) {
-            setIsAvailable(profile.isAvailable);
+    const checkAuth = () => {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          const parsedRole = parsed.role?.toUpperCase();
+          if (parsedRole !== "DELIVERY_MAN" && parsedRole !== "DELIVERY") {
+            router.replace(getRoleRoute(parsedRole));
+            return;
           }
-        });
-      } catch (e) {
-        router.push("/login");
+          setUser(parsed);
+
+          getUserProfile(parsed.id).then((profile) => {
+            if (profile) {
+              setIsAvailable(profile.isAvailable);
+            }
+          });
+        } catch {
+          router.replace("/login");
+        }
+      } else {
+        router.replace("/login");
       }
-    } else {
-      router.push("/login");
-    }
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("user-session-updated", checkAuth);
+    window.addEventListener("user-state-change", checkAuth);
+
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("user-session-updated", checkAuth);
+      window.removeEventListener("user-state-change", checkAuth);
+    };
   }, [router]);
 
   useEffect(() => {

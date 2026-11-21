@@ -14,10 +14,23 @@ export default function PatientDashboard() {
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   useEffect(() => {
-    const saved = localStorage.getItem("user");
-    if (!saved) {
-      router.push("/login");
-    }
+    const checkAuth = () => {
+      const saved = localStorage.getItem("user");
+      if (!saved) {
+        router.replace("/login");
+      }
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("user-session-updated", checkAuth);
+    window.addEventListener("user-state-change", checkAuth);
+
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("user-session-updated", checkAuth);
+      window.removeEventListener("user-state-change", checkAuth);
+    };
   }, [router]);
 
   // Default Dhaka fallback coordinates

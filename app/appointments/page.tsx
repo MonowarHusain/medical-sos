@@ -18,17 +18,30 @@ export default function AppointmentsPage() {
   const [rxTexts, setRxTexts] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Failed to parse user:", e);
-        router.push("/login");
+    const checkAuth = () => {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+        } catch (e) {
+          console.error("Failed to parse user:", e);
+          router.replace("/login");
+        }
+      } else {
+        router.replace("/login");
       }
-    } else {
-      router.push("/login");
-    }
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("user-session-updated", checkAuth);
+    window.addEventListener("user-state-change", checkAuth);
+
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("user-session-updated", checkAuth);
+      window.removeEventListener("user-state-change", checkAuth);
+    };
   }, [router]);
 
   const fetchData = useCallback(async () => {

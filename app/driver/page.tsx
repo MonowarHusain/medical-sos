@@ -10,6 +10,7 @@ import {
   updateCallDriverStatus,
   getUserProfile,
 } from "../actions";
+import { getRoleRoute } from "@/lib/roleRoutes";
 import Navbar from "../components/Navbar";
 
 type EmergencyCall = {
@@ -36,27 +37,40 @@ export default function DriverDashboard() {
 
   // Load user
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed.role?.toUpperCase() !== "DRIVER") {
-          router.push("/");
-          return;
-        }
-        setUser(parsed);
-
-        getUserProfile(parsed.id).then((profile) => {
-          if (profile) {
-            setIsAvailable(profile.isAvailable);
+    const checkAuth = () => {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (parsed.role?.toUpperCase() !== "DRIVER") {
+            router.replace(getRoleRoute(parsed.role));
+            return;
           }
-        });
-      } catch (e) {
-        router.push("/login");
+          setUser(parsed);
+
+          getUserProfile(parsed.id).then((profile) => {
+            if (profile) {
+              setIsAvailable(profile.isAvailable);
+            }
+          });
+        } catch {
+          router.replace("/login");
+        }
+      } else {
+        router.replace("/login");
       }
-    } else {
-      router.push("/login");
-    }
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("user-session-updated", checkAuth);
+    window.addEventListener("user-state-change", checkAuth);
+
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("user-session-updated", checkAuth);
+      window.removeEventListener("user-state-change", checkAuth);
+    };
   }, [router]);
 
   // Auto-refresh calls with proper cleanup

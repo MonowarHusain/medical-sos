@@ -2,15 +2,46 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { getPendingCounts } from "../actions";
+import { getRoleRoute } from "@/lib/roleRoutes";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [counts, setCounts] = useState({ sos: 0, orders: 0 });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const saved = localStorage.getItem("user");
+      if (!saved) {
+        router.replace("/login");
+        return;
+      }
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.role?.toUpperCase() !== "ADMIN") {
+          router.replace(getRoleRoute(parsed.role));
+        }
+      } catch {
+        router.replace("/login");
+      }
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("user-session-updated", checkAuth);
+    window.addEventListener("user-state-change", checkAuth);
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("user-session-updated", checkAuth);
+      window.removeEventListener("user-state-change", checkAuth);
+    };
+  }, [router]);
 
   useEffect(() => {
     let isMounted = true;
