@@ -285,7 +285,7 @@ export default function DriverDashboard() {
                             {call.driverStatus || "PENDING"}
                           </span>
                           <span className="text-slate-400 text-xs font-mono">
-                            {new Date(call.createdAt).toLocaleTimeString()}
+                            {new Date(call.createdAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
                           </span>
                         </div>
 

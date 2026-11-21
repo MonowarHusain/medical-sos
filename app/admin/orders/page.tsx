@@ -128,7 +128,9 @@ export default function OrdersAdminPage() {
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${statusBadge.bg}`}>
                                                 {statusBadge.label}
                                             </span>
-                                            <span className="text-slate-400 text-sm">{new Date(order.createdAt).toLocaleTimeString()}</span>
+                                            <span className="text-slate-400 text-sm">
+                                                {new Date(order.createdAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+                                            </span>
                                         </div>
                                         <p className="font-bold text-lg text-green-300">💰 ${order.total}</p>
                                         <p className="text-slate-300">👤 {order.user.name} ({order.user.email})</p>

@@ -235,7 +235,7 @@ export default function DeliveryDashboard() {
                             {order.deliveryStatus || "PENDING"}
                           </span>
                           <span className="text-slate-400 text-xs font-mono">
-                            {new Date(order.createdAt).toLocaleTimeString()}
+                            {new Date(order.createdAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
                           </span>
                         </div>
 
