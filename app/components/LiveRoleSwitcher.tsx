@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { switchUserRole, loginUser, type ValidRole } from "../actions";
-import { getRoleRoute } from "@/lib/roleRoutes";
+import { switchUserRole, loginUser } from "../actions";
+import { getRoleRoute, type ValidRole } from "@/lib/roleRoutes";
 
 const DEMO_ACCOUNTS = [
   { group: "Patients", email: "pat1@test.com", name: "Patient 1", role: "PATIENT", icon: "🤒" },

@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { VALID_ROLES, type ValidRole, type SwitchUserRoleParams } from "@/lib/constants";
 
 /**
  * Recursively serializes all Date objects to ISO strings so Next.js React Server
@@ -1047,15 +1048,6 @@ export async function deleteMedicine(id: string) {
 // ==========================================
 // 12. ROLE & ACCOUNT MANAGEMENT (Live DB)
 // ==========================================
-
-export const VALID_ROLES = ["PATIENT", "DOCTOR", "DRIVER", "DELIVERY", "ADMIN"] as const;
-export type ValidRole = (typeof VALID_ROLES)[number];
-
-export type SwitchUserRoleParams = {
-  userId?: string;
-  email?: string;
-  newRole: string;
-};
 
 export async function switchUserRole(
   paramsOrUserId: string | SwitchUserRoleParams,

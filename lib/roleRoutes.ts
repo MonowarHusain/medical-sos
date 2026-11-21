@@ -1,4 +1,6 @@
-export type ValidRole = "PATIENT" | "DOCTOR" | "DRIVER" | "DELIVERY" | "ADMIN";
+import { VALID_ROLES, type ValidRole } from "./constants";
+
+export { VALID_ROLES, type ValidRole };
 
 /**
  * Deterministically maps any user role to its designated dashboard route.
