@@ -17,7 +17,7 @@
 | **Course Title** | **CSE370: Database Systems** |
 | **Semester** | **Fall 2025** |
 | **Institution** | **Department of Computer Science and Engineering, BRAC University** |
-| **Project Author** | **Monowar Husain** |
+| **Project Author** | **Monowar Husain, MD. HIMEL SARKER, Sinthia Siddique Borsha** |
 | **Student ID** | **`22301098`** |
 | **Live Production URL** | [https://medical-sos-one.vercel.app](https://medical-sos-one.vercel.app) |
 | **Database Status Check** | [https://medical-sos-one.vercel.app/api/health](https://medical-sos-one.vercel.app/api/health) |
