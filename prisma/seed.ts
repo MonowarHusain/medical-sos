@@ -3,10 +3,87 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Starting database seed with realistic demonstration data...");
+  console.log("🌱 Starting database seed with multi-user demonstration data...");
 
   // 1. Standardized Demo User Accounts (Password: 123456)
   const demoUsers = [
+    // Patients
+    {
+      email: "pat1@test.com",
+      name: "Patient 1",
+      password: "123456",
+      role: "PATIENT",
+      phone: "+8801711111111",
+    },
+    {
+      email: "pat2@test.com",
+      name: "Patient 2",
+      password: "123456",
+      role: "PATIENT",
+      phone: "+8801711111112",
+    },
+    // Doctors
+    {
+      email: "doc1@test.com",
+      name: "Dr. Doctor 1",
+      password: "123456",
+      role: "DOCTOR",
+      phone: "+8801722222221",
+    },
+    {
+      email: "doc2@test.com",
+      name: "Dr. Doctor 2",
+      password: "123456",
+      role: "DOCTOR",
+      phone: "+8801722222222",
+    },
+    // Drivers
+    {
+      email: "dri1@test.com",
+      name: "Driver 1",
+      password: "123456",
+      role: "DRIVER",
+      phone: "+8801744444441",
+      isAvailable: true,
+      currentLatitude: 23.8103,
+      currentLongitude: 90.4125,
+    },
+    {
+      email: "dri2@test.com",
+      name: "Driver 2",
+      password: "123456",
+      role: "DRIVER",
+      phone: "+8801744444442",
+      isAvailable: true,
+      currentLatitude: 23.7925,
+      currentLongitude: 90.4078,
+    },
+    // Delivery Riders (DELIVERY)
+    {
+      email: "deli1@test.com",
+      name: "Delivery Rider 1",
+      password: "123456",
+      role: "DELIVERY",
+      phone: "+8801755555551",
+      isAvailable: true,
+    },
+    {
+      email: "deli2@test.com",
+      name: "Delivery Rider 2",
+      password: "123456",
+      role: "DELIVERY",
+      phone: "+8801755555552",
+      isAvailable: true,
+    },
+    // Admin
+    {
+      email: "admin@test.com",
+      name: "System Admin",
+      password: "123456",
+      role: "ADMIN",
+      phone: "+8801733333333",
+    },
+    // Backward-compatible alias accounts
     {
       email: "patient@test.com",
       name: "Demo Patient",
@@ -19,21 +96,14 @@ async function main() {
       name: "Dr. A. Rahman",
       password: "123456",
       role: "DOCTOR",
-      phone: "+8801722222222",
-    },
-    {
-      email: "admin@test.com",
-      name: "Demo Admin",
-      password: "123456",
-      role: "ADMIN",
-      phone: "+8801733333333",
+      phone: "+8801722222220",
     },
     {
       email: "driver@test.com",
       name: "Karim Driver",
       password: "123456",
       role: "DRIVER",
-      phone: "+8801744444444",
+      phone: "+8801744444440",
       isAvailable: true,
       currentLatitude: 23.8103,
       currentLongitude: 90.4125,
@@ -42,8 +112,8 @@ async function main() {
       email: "delivery@test.com",
       name: "Rafiq Delivery",
       password: "123456",
-      role: "DELIVERY_MAN",
-      phone: "+8801755555555",
+      role: "DELIVERY",
+      phone: "+8801755555550",
       isAvailable: true,
     },
   ];
@@ -71,19 +141,23 @@ async function main() {
         password: user.password.trim(),
       },
     });
-    seededUsers[user.role] = record;
+    seededUsers[normalizedEmail] = record;
     console.log(`  ✓ Seeded User: ${normalizedEmail} (${user.role}) - Password: ${user.password}`);
   }
 
-  const patient = seededUsers["PATIENT"];
-  const doctor = seededUsers["DOCTOR"];
-  const driver = seededUsers["DRIVER"];
-  const delivery = seededUsers["DELIVERY_MAN"];
+  const pat1 = seededUsers["pat1@test.com"];
+  const pat2 = seededUsers["pat2@test.com"];
+  const doc1 = seededUsers["doc1@test.com"];
+  const doc2 = seededUsers["doc2@test.com"];
+  const dri1 = seededUsers["dri1@test.com"];
+  const dri2 = seededUsers["dri2@test.com"];
+  const deli1 = seededUsers["deli1@test.com"];
+  const deli2 = seededUsers["deli2@test.com"];
 
-  // 2. Patient Emergency Health Card
-  if (patient) {
+  // 2. Patient Health Cards
+  if (pat1) {
     await prisma.healthCard.upsert({
-      where: { userId: patient.id },
+      where: { userId: pat1.id },
       update: {
         bloodType: "O+",
         dateOfBirth: "1995-04-12",
@@ -99,7 +173,7 @@ async function main() {
         insuranceNumber: "POL-882910",
       },
       create: {
-        userId: patient.id,
+        userId: pat1.id,
         bloodType: "O+",
         dateOfBirth: "1995-04-12",
         height: "5'9 (175cm)",
@@ -114,7 +188,43 @@ async function main() {
         insuranceNumber: "POL-882910",
       },
     });
-    console.log("  ✓ Seeded Patient Health Card (O+, Allergies, Emergency Contact)");
+    console.log("  ✓ Seeded Health Card for pat1@test.com");
+  }
+
+  if (pat2) {
+    await prisma.healthCard.upsert({
+      where: { userId: pat2.id },
+      update: {
+        bloodType: "A+",
+        dateOfBirth: "1998-08-23",
+        height: "5'6 (168cm)",
+        weight: "65kg",
+        allergies: "Dust, Pollen",
+        conditions: "Hypertension",
+        medications: "Amlodipine 5mg once daily",
+        emergencyName: "Farhan Ahmed",
+        emergencyPhone: "+8801788888888",
+        emergencyRelation: "Brother",
+        insuranceProvider: "Green Delta Health",
+        insuranceNumber: "GD-109283",
+      },
+      create: {
+        userId: pat2.id,
+        bloodType: "A+",
+        dateOfBirth: "1998-08-23",
+        height: "5'6 (168cm)",
+        weight: "65kg",
+        allergies: "Dust, Pollen",
+        conditions: "Hypertension",
+        medications: "Amlodipine 5mg once daily",
+        emergencyName: "Farhan Ahmed",
+        emergencyPhone: "+8801788888888",
+        emergencyRelation: "Brother",
+        insuranceProvider: "Green Delta Health",
+        insuranceNumber: "GD-109283",
+      },
+    });
+    console.log("  ✓ Seeded Health Card for pat2@test.com");
   }
 
   // 3. 6 Realistic Medicines
@@ -172,12 +282,11 @@ async function main() {
     console.log(`  ✓ Seeded Medicine: ${med.name} ($${med.price.toFixed(2)})`);
   }
 
-  // 4. Sample Appointments (Patient <-> Doctor)
-  if (patient && doctor) {
-    // 4.1 Completed consultation with Doctor's written prescription
+  // 4. Sample Appointments (pat1, pat2 with doc1, doc2)
+  if (pat1 && doc1) {
     const existingCompleted = await prisma.appointment.findFirst({
       where: {
-        patientId: patient.id,
+        patientId: pat1.id,
         reason: "Persistent high fever and headache for 3 days",
       },
     });
@@ -185,8 +294,8 @@ async function main() {
     if (!existingCompleted) {
       await prisma.appointment.create({
         data: {
-          patientId: patient.id,
-          doctorId: doctor.id,
+          patientId: pat1.id,
+          doctorId: doc1.id,
           date: new Date(Date.now() - 86400000 * 2).toISOString(),
           reason: "Persistent high fever and headache for 3 days",
           status: "COMPLETED",
@@ -196,37 +305,61 @@ async function main() {
           prescribedAt: new Date(Date.now() - 86400000 * 2 + 3600000 * 2),
         },
       });
-      console.log("  ✓ Seeded Completed Appointment with Rx");
+      console.log("  ✓ Seeded Completed Appointment for pat1 with doc1");
     }
+  }
 
-    // 4.2 Upcoming confirmed appointment
+  if (pat1 && doc2) {
     const existingUpcoming = await prisma.appointment.findFirst({
       where: {
-        patientId: patient.id,
-        reason: "Routine follow-up consultation and chest checkup",
+        patientId: pat1.id,
+        reason: "Routine cardiology follow-up & ECG review",
       },
     });
 
     if (!existingUpcoming) {
       await prisma.appointment.create({
         data: {
-          patientId: patient.id,
-          doctorId: doctor.id,
+          patientId: pat1.id,
+          doctorId: doc2.id,
           date: new Date(Date.now() + 86400000 * 2).toISOString(),
-          reason: "Routine follow-up consultation and chest checkup",
+          reason: "Routine cardiology follow-up & ECG review",
           status: "CONFIRMED",
           createdAt: new Date(),
         },
       });
-      console.log("  ✓ Seeded Upcoming Confirmed Appointment");
+      console.log("  ✓ Seeded Confirmed Appointment for pat1 with doc2");
+    }
+  }
+
+  if (pat2 && doc1) {
+    const existingUpcomingPat2 = await prisma.appointment.findFirst({
+      where: {
+        patientId: pat2.id,
+        reason: "Seasonal flu and persistent throat irritation",
+      },
+    });
+
+    if (!existingUpcomingPat2) {
+      await prisma.appointment.create({
+        data: {
+          patientId: pat2.id,
+          doctorId: doc1.id,
+          date: new Date(Date.now() + 86400000 * 1).toISOString(),
+          reason: "Seasonal flu and persistent throat irritation",
+          status: "CONFIRMED",
+          createdAt: new Date(),
+        },
+      });
+      console.log("  ✓ Seeded Confirmed Appointment for pat2 with doc1");
     }
   }
 
   // 5. Emergency Calls (Dhaka GPS coordinates)
-  if (patient) {
+  if (pat1) {
     // 5.1 Active PENDING call (Dhanmondi, Dhaka: 23.7465, 90.3760)
     const existingPending = await prisma.emergencyCall.findFirst({
-      where: { userId: patient.id, status: "PENDING" },
+      where: { userId: pat1.id, status: "PENDING" },
     });
 
     if (!existingPending) {
@@ -235,16 +368,16 @@ async function main() {
           latitude: 23.7465,
           longitude: 90.3760,
           status: "PENDING",
-          userId: patient.id,
+          userId: pat1.id,
           createdAt: new Date(),
         },
       });
-      console.log("  ✓ Seeded Active PENDING Emergency Call (Dhaka: 23.7465, 90.3760)");
+      console.log("  ✓ Seeded Active PENDING Emergency Call for pat1 (Dhanmondi: 23.7465, 90.3760)");
     }
 
-    // 5.2 Past RESOLVED call (Gulshan, Dhaka: 23.7925, 90.4078) assigned to Driver
+    // 5.2 Past RESOLVED call (Gulshan, Dhaka: 23.7925, 90.4078) assigned to dri1
     const existingResolved = await prisma.emergencyCall.findFirst({
-      where: { userId: patient.id, status: "RESOLVED" },
+      where: { userId: pat1.id, status: "RESOLVED" },
     });
 
     if (!existingResolved) {
@@ -253,20 +386,42 @@ async function main() {
           latitude: 23.7925,
           longitude: 90.4078,
           status: "RESOLVED",
-          userId: patient.id,
-          driverId: driver?.id || null,
+          userId: pat1.id,
+          driverId: dri1?.id || null,
           driverStatus: "COMPLETED",
           createdAt: new Date(Date.now() - 86400000 * 1),
         },
       });
-      console.log("  ✓ Seeded Past RESOLVED Emergency Call (Dhaka: 23.7925, 90.4078)");
+      console.log("  ✓ Seeded Past RESOLVED Emergency Call for pat1 (Gulshan) assigned to dri1");
+    }
+  }
+
+  if (pat2) {
+    // 5.3 Active ASSIGNED call (Banani: 23.7937, 90.4066) assigned to dri2
+    const existingAssigned = await prisma.emergencyCall.findFirst({
+      where: { userId: pat2.id, status: "ASSIGNED" },
+    });
+
+    if (!existingAssigned) {
+      await prisma.emergencyCall.create({
+        data: {
+          latitude: 23.7937,
+          longitude: 90.4066,
+          status: "ASSIGNED",
+          userId: pat2.id,
+          driverId: dri2?.id || null,
+          driverStatus: "EN_ROUTE",
+          createdAt: new Date(),
+        },
+      });
+      console.log("  ✓ Seeded Active ASSIGNED Emergency Call for pat2 (Banani) assigned to dri2");
     }
   }
 
   // 6. Pharmacy Orders with Items
-  if (patient && seededMedicines["Napa 500mg"] && seededMedicines["Seclo 20mg"]) {
+  if (pat1 && seededMedicines["Napa 500mg"] && seededMedicines["Seclo 20mg"]) {
     const existingOrder = await prisma.order.findFirst({
-      where: { userId: patient.id },
+      where: { userId: pat1.id },
     });
 
     if (!existingOrder) {
@@ -276,12 +431,12 @@ async function main() {
 
       await prisma.order.create({
         data: {
-          userId: patient.id,
+          userId: pat1.id,
           total: totalAmount,
           status: "DELIVERED",
           deliveryStatus: "DELIVERED",
           deliveryAddress: "House 42, Road 9A, Dhanmondi, Dhaka",
-          deliveryManId: delivery?.id || null,
+          deliveryManId: deli1?.id || null,
           createdAt: new Date(Date.now() - 86400000 * 3),
           items: {
             create: [
@@ -299,11 +454,50 @@ async function main() {
           },
         },
       });
-      console.log("  ✓ Seeded Past Delivered Pharmacy Order ($" + totalAmount.toFixed(2) + ")");
+      console.log("  ✓ Seeded Delivered Pharmacy Order for pat1 assigned to deli1");
     }
   }
 
-  console.log("🎉 All realistic demo data seeded successfully!");
+  if (pat2 && seededMedicines["Sergel 20mg"] && seededMedicines["Monas 10mg"]) {
+    const existingOrderPat2 = await prisma.order.findFirst({
+      where: { userId: pat2.id },
+    });
+
+    if (!existingOrderPat2) {
+      const sergel = seededMedicines["Sergel 20mg"];
+      const monas = seededMedicines["Monas 10mg"];
+      const totalAmount = sergel.price * 2 + monas.price * 1;
+
+      await prisma.order.create({
+        data: {
+          userId: pat2.id,
+          total: totalAmount,
+          status: "ASSIGNED",
+          deliveryStatus: "OUT_FOR_DELIVERY",
+          deliveryAddress: "Flat 4B, Plot 15, Road 11, Banani, Dhaka",
+          deliveryManId: deli2?.id || null,
+          createdAt: new Date(),
+          items: {
+            create: [
+              {
+                medicineId: sergel.id,
+                quantity: 2,
+                price: sergel.price,
+              },
+              {
+                medicineId: monas.id,
+                quantity: 1,
+                price: monas.price,
+              },
+            ],
+          },
+        },
+      });
+      console.log("  ✓ Seeded Active OUT_FOR_DELIVERY Pharmacy Order for pat2 assigned to deli2");
+    }
+  }
+
+  console.log("🎉 All 9 demo user accounts & rich sample records seeded successfully!");
 }
 
 main()
