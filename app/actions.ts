@@ -33,7 +33,7 @@ export async function triggerSOS(lat: number, lng: number, userId?: string) {
     return { success: true, callId: call.id };
   } catch (error) {
     console.error("triggerSOS error:", error);
-    return { success: false, callId: null, error: "Failed to create emergency call" };
+    return { success: false, callId: null, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -73,7 +73,7 @@ export async function resolveCall(id: string) {
     return { success: true };
   } catch (error) {
     console.error("resolveCall error:", error);
-    return { success: false, error: "Failed to resolve call" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -102,65 +102,68 @@ export async function getPatientCalls(userId: string) {
 export async function registerUser(
   input: FormData | { name?: string; email?: string; password?: string; role?: string }
 ) {
-  let name = "";
-  let email = "";
-  let password = "";
-  let role = "PATIENT";
-
-  if (input instanceof FormData) {
-    name = (input.get("name") as string) || "";
-    email = (input.get("email") as string) || "";
-    password = (input.get("password") as string) || "";
-    role = (input.get("role") as string) || "PATIENT";
-  } else if (input && typeof input === "object") {
-    name = input.name || "";
-    email = input.email || "";
-    password = input.password || "";
-    role = input.role || "PATIENT";
-  }
-
-  name = (name || "").trim();
-  email = (email || "").trim().toLowerCase();
-  password = (password || "").trim();
-  role = ((role || "").trim().toUpperCase() || "PATIENT");
-
-  if (!name || !email || !password) {
-    return { success: false, error: "Name, email, and password are required" };
-  }
-
   try {
+    let name = "";
+    let email = "";
+    let password = "";
+    let role = "PATIENT";
+
+    if (input instanceof FormData) {
+      name = (input.get("name") as string) || "";
+      email = (input.get("email") as string) || "";
+      password = (input.get("password") as string) || "";
+      role = (input.get("role") as string) || "PATIENT";
+    } else if (input && typeof input === "object") {
+      name = input.name || "";
+      email = input.email || "";
+      password = input.password || "";
+      role = input.role || "PATIENT";
+    }
+
+    name = (name || "").trim();
+    email = (email || "").trim().toLowerCase();
+    password = (password || "").trim();
+    role = ((role || "").trim().toUpperCase() || "PATIENT");
+
+    if (!name || !email || !password) {
+      return { success: false, error: "Name, email, and password are required" };
+    }
+
     await prisma.user.create({
       data: { name, email, password, role },
     });
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error("registerUser error:", error);
-    return { success: false, error: "Email already exists or registration failed" };
+    if (error?.code === "P2002") {
+      return { success: false, error: "Email already exists" };
+    }
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
 export async function loginUser(
   input: FormData | { email?: string; password?: string }
 ) {
-  let email = "";
-  let rawPassword = "";
-
-  if (input instanceof FormData) {
-    email = (input.get("email") as string) || "";
-    rawPassword = (input.get("password") as string) || "";
-  } else if (input && typeof input === "object") {
-    email = input.email || "";
-    rawPassword = input.password || "";
-  }
-
-  email = (email || "").trim().toLowerCase();
-  const password = (rawPassword || "").trim();
-
-  if (!email || !password) {
-    return { success: false, error: "Email and password are required" };
-  }
-
   try {
+    let email = "";
+    let rawPassword = "";
+
+    if (input instanceof FormData) {
+      email = (input.get("email") as string) || "";
+      rawPassword = (input.get("password") as string) || "";
+    } else if (input && typeof input === "object") {
+      email = input.email || "";
+      rawPassword = input.password || "";
+    }
+
+    email = (email || "").trim().toLowerCase();
+    const password = (rawPassword || "").trim();
+
+    if (!email || !password) {
+      return { success: false, error: "Email and password are required" };
+    }
+
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -186,7 +189,7 @@ export async function loginUser(
     };
   } catch (error) {
     console.error("loginUser error:", error);
-    return { success: false, error: "Database error" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -195,23 +198,23 @@ export async function loginUser(
 // ==========================================
 
 export async function bookAppointment(formData: FormData) {
-  const patientId = (formData.get("patientId") as string)?.trim();
-  const reason = (formData.get("reason") as string)?.trim();
-  const date = (formData.get("date") as string)?.trim();
-
-  if (!patientId || !reason || !date) {
-    return { success: false, error: "All fields are required" };
-  }
-
-  const selectedDate = new Date(date);
-  const now = new Date();
-
-  // Allow 1 minute buffer for local clock drift
-  if (selectedDate.getTime() < now.getTime() - 60000) {
-    return { success: false, error: "Appointment date must be in the future" };
-  }
-
   try {
+    const patientId = (formData.get("patientId") as string)?.trim();
+    const reason = (formData.get("reason") as string)?.trim();
+    const date = (formData.get("date") as string)?.trim();
+
+    if (!patientId || !reason || !date) {
+      return { success: false, error: "All fields are required" };
+    }
+
+    const selectedDate = new Date(date);
+    const now = new Date();
+
+    // Allow 1 minute buffer for local clock drift
+    if (selectedDate.getTime() < now.getTime() - 60000) {
+      return { success: false, error: "Appointment date must be in the future" };
+    }
+
     await prisma.appointment.create({
       data: {
         patientId,
@@ -226,7 +229,7 @@ export async function bookAppointment(formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error("bookAppointment error:", error);
-    return { success: false, error: "Failed to book appointment" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -311,7 +314,7 @@ export async function updateUserProfile(userId: string, formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error("updateUserProfile error:", error);
-    return { success: false, error: "Failed to update profile" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -338,7 +341,7 @@ export async function submitPrescription(appointmentId: string, text: string) {
     return { success: true };
   } catch (error) {
     console.error("submitPrescription error:", error);
-    return { success: false, error: "Failed to submit prescription" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -396,7 +399,7 @@ export async function placeOrder(
     return { success: true };
   } catch (error) {
     console.error("placeOrder error:", error);
-    return { success: false, error: "Failed to place order" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -468,7 +471,7 @@ export async function assignDeliveryManToOrder(orderId: string, deliveryManId: s
     return { success: true };
   } catch (error) {
     console.error("assignDeliveryManToOrder error:", error);
-    return { success: false, error: "Failed to assign delivery personnel" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -519,7 +522,7 @@ export async function updateOrderDeliveryStatus(orderId: string, deliveryStatus:
     return { success: true };
   } catch (error) {
     console.error("updateOrderDeliveryStatus error:", error);
-    return { success: false, error: "Failed to update delivery status" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -594,7 +597,7 @@ export async function assignDriverToCall(callId: string, driverId: string) {
     return { success: true };
   } catch (error) {
     console.error("assignDriverToCall error:", error);
-    return { success: false, error: "Failed to assign driver" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -627,7 +630,7 @@ export async function updateDriverStatus(driverId: string, isAvailable: boolean)
     return { success: true };
   } catch (error) {
     console.error("updateDriverStatus error:", error);
-    return { success: false, error: "Failed to update driver status" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -646,7 +649,7 @@ export async function updateDriverLocation(driverId: string, lat: number, lng: n
     return { success: true };
   } catch (error) {
     console.error("updateDriverLocation error:", error);
-    return { success: false, error: "Failed to update location" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -676,7 +679,7 @@ export async function updateCallDriverStatus(callId: string, driverStatus: strin
     return { success: true };
   } catch (error) {
     console.error("updateCallDriverStatus error:", error);
-    return { success: false, error: "Failed to update call status" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -781,7 +784,7 @@ export async function saveHealthCard(userId: string, formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error("saveHealthCard error:", error);
-    return { success: false, error: "Failed to save health card" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -954,7 +957,7 @@ export async function addMedicine(data: {
     return { success: true };
   } catch (error) {
     console.error("addMedicine error:", error);
-    return { success: false, error: "Failed to add medicine (name may already exist)" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -990,7 +993,7 @@ export async function updateMedicine(
     return { success: true };
   } catch (error) {
     console.error("updateMedicine error:", error);
-    return { success: false, error: "Failed to update medicine" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -1005,7 +1008,7 @@ export async function deleteMedicine(id: string) {
     return { success: true };
   } catch (error) {
     console.error("deleteMedicine error:", error);
-    return { success: false, error: "Failed to delete medicine" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
@@ -1060,7 +1063,7 @@ export async function switchUserRole(userId: string, newRole: string) {
     };
   } catch (error) {
     console.error("switchUserRole error:", error);
-    return { success: false, error: "Failed to switch user role in database" };
+    return { success: false, error: "Database connection failed. Please retry." };
   }
 }
 
