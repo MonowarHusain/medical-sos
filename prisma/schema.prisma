@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -71,7 +71,7 @@ model EmergencyCall {
 
 model Medicine {
   id        String   @id @default(cuid())
-  name      String
+  name      String   @unique
   price     Float
   stock     Int
   description String?
