@@ -11,13 +11,25 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const redirectByRole = (role: string) => {
-    const normalized = role?.toUpperCase();
-    if (normalized === "ADMIN") router.push("/admin");
-    else if (normalized === "DOCTOR") router.push("/appointments");
-    else if (normalized === "DRIVER") router.push("/driver");
-    else if (normalized === "DELIVERY_MAN") router.push("/delivery");
-    else router.push("/patient");
+  // Form input state for smooth 1-click viva demo fill
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("PATIENT");
+
+  const redirectByRole = (userRole: string) => {
+    const normalized = userRole?.toUpperCase();
+    if (normalized === "ADMIN") {
+      router.push("/admin");
+    } else if (normalized === "DOCTOR") {
+      router.push("/appointments");
+    } else if (normalized === "DRIVER") {
+      router.push("/driver");
+    } else if (normalized === "DELIVERY_MAN") {
+      router.push("/delivery");
+    } else {
+      router.push("/patient");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -26,11 +38,9 @@ export default function LoginPage() {
     setSuccess("");
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-
     try {
       if (isRegister) {
-        const result = await registerUser(formData);
+        const result = await registerUser({ name, email, password, role });
         if (result.success) {
           setIsRegister(false);
           setSuccess("Account created successfully! Please log in.");
@@ -38,7 +48,7 @@ export default function LoginPage() {
           setError(result.error || "Registration failed. Please check your information.");
         }
       } else {
-        const result = await loginUser(formData);
+        const result = await loginUser({ email, password });
         if (result.success && result.user) {
           localStorage.setItem("user", JSON.stringify(result.user));
           redirectByRole(result.user.role);
@@ -47,31 +57,31 @@ export default function LoginPage() {
         }
       }
     } catch (err) {
+      console.error(err);
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickDemo = async (email: string) => {
+  const handleQuickDemo = async (demoEmail: string, demoRole: string) => {
     setError("");
     setSuccess("");
+    setEmail(demoEmail);
+    setPassword("123456");
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append("email", email);
-    formData.append("password", "123456");
-
     try {
-      const result = await loginUser(formData);
+      const result = await loginUser({ email: demoEmail, password: "123456" });
       if (result.success && result.user) {
         localStorage.setItem("user", JSON.stringify(result.user));
-        redirectByRole(result.user.role);
+        redirectByRole(result.user.role || demoRole);
       } else {
-        setError(`Could not log into ${email}. Ensure database is seeded.`);
+        setError(result.error || `Could not log into ${demoEmail}. Ensure database is seeded.`);
       }
     } catch (err) {
-      setError("Demo login failed.");
+      console.error(err);
+      setError("Demo login network error.");
     } finally {
       setLoading(false);
     }
@@ -118,6 +128,8 @@ export default function LoginPage() {
                   name="name"
                   type="text"
                   placeholder="e.g. John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   required
                   className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
                 />
@@ -130,6 +142,8 @@ export default function LoginPage() {
                 name="email"
                 type="email"
                 placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
               />
@@ -141,6 +155,8 @@ export default function LoginPage() {
                 name="password"
                 type="password"
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
               />
@@ -151,6 +167,8 @@ export default function LoginPage() {
                 <label className="block text-xs uppercase font-bold text-slate-400 mb-1.5">System Role</label>
                 <select
                   name="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
                   className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
                 >
                   <option value="PATIENT">Patient</option>
@@ -195,53 +213,55 @@ export default function LoginPage() {
             <div className="mt-6 pt-5 border-t border-slate-800">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">
-                  ⚡ Viva & Demo One-Click Logins
+                  ⚡ Viva Demo One-Click Sign In
                 </p>
-                <span className="text-[10px] text-slate-500 font-mono">PWD: 123456</span>
+                <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded font-mono">
+                  PWD: 123456
+                </span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => handleQuickDemo("patient@test.com")}
+                  onClick={() => handleQuickDemo("patient@test.com", "PATIENT")}
                   disabled={loading}
-                  className="px-2.5 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center"
-                  title="patient@test.com / 123456"
+                  className="px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
+                  title="patient@test.com / 123456 -> /patient"
                 >
                   🤒 Patient
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickDemo("doctor@test.com")}
+                  onClick={() => handleQuickDemo("doctor@test.com", "DOCTOR")}
                   disabled={loading}
-                  className="px-2.5 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center"
-                  title="doctor@test.com / 123456"
+                  className="px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
+                  title="doctor@test.com / 123456 -> /appointments"
                 >
                   👨‍⚕️ Doctor
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickDemo("admin@test.com")}
+                  onClick={() => handleQuickDemo("admin@test.com", "ADMIN")}
                   disabled={loading}
-                  className="px-2.5 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center"
-                  title="admin@test.com / 123456"
+                  className="px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
+                  title="admin@test.com / 123456 -> /admin"
                 >
                   🚨 Admin
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickDemo("driver@test.com")}
+                  onClick={() => handleQuickDemo("driver@test.com", "DRIVER")}
                   disabled={loading}
-                  className="px-2.5 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center"
-                  title="driver@test.com / 123456"
+                  className="px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
+                  title="driver@test.com / 123456 -> /driver"
                 >
                   🚑 Driver
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickDemo("delivery@test.com")}
+                  onClick={() => handleQuickDemo("delivery@test.com", "DELIVERY_MAN")}
                   disabled={loading}
-                  className="col-span-2 px-2.5 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center"
-                  title="delivery@test.com / 123456"
+                  className="col-span-2 px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
+                  title="delivery@test.com / 123456 -> /delivery"
                 >
                   🛵 Medicine Courier
                 </button>

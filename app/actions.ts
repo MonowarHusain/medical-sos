@@ -99,11 +99,30 @@ export async function getPatientCalls(userId: string) {
 // 2. AUTHENTICATION (Never return password)
 // ==========================================
 
-export async function registerUser(formData: FormData) {
-  const name = (formData.get("name") as string)?.trim();
-  const email = (formData.get("email") as string)?.trim().toLowerCase();
-  const password = formData.get("password") as string;
-  const role = ((formData.get("role") as string)?.trim().toUpperCase() || "PATIENT");
+export async function registerUser(
+  input: FormData | { name?: string; email?: string; password?: string; role?: string }
+) {
+  let name = "";
+  let email = "";
+  let password = "";
+  let role = "PATIENT";
+
+  if (input instanceof FormData) {
+    name = (input.get("name") as string) || "";
+    email = (input.get("email") as string) || "";
+    password = (input.get("password") as string) || "";
+    role = (input.get("role") as string) || "PATIENT";
+  } else if (input && typeof input === "object") {
+    name = input.name || "";
+    email = input.email || "";
+    password = input.password || "";
+    role = input.role || "PATIENT";
+  }
+
+  name = (name || "").trim();
+  email = (email || "").trim().toLowerCase();
+  password = (password || "").trim();
+  role = ((role || "").trim().toUpperCase() || "PATIENT");
 
   if (!name || !email || !password) {
     return { success: false, error: "Name, email, and password are required" };
@@ -120,9 +139,22 @@ export async function registerUser(formData: FormData) {
   }
 }
 
-export async function loginUser(formData: FormData) {
-  const email = (formData.get("email") as string)?.trim().toLowerCase();
-  const password = formData.get("password") as string;
+export async function loginUser(
+  input: FormData | { email?: string; password?: string }
+) {
+  let email = "";
+  let rawPassword = "";
+
+  if (input instanceof FormData) {
+    email = (input.get("email") as string) || "";
+    rawPassword = (input.get("password") as string) || "";
+  } else if (input && typeof input === "object") {
+    email = input.email || "";
+    rawPassword = input.password || "";
+  }
+
+  email = (email || "").trim().toLowerCase();
+  const password = (rawPassword || "").trim();
 
   if (!email || !password) {
     return { success: false, error: "Email and password are required" };
@@ -133,24 +165,28 @@ export async function loginUser(formData: FormData) {
       where: { email },
     });
 
-    if (user && user.password === password) {
-      // Return safe user object - NEVER return password to client
-      return {
-        success: true,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          phone: user.phone,
-        },
-      };
+    if (!user) {
+      return { success: false, error: "Account not found" };
     }
 
-    return { success: false, error: "Invalid email or password" };
+    if (user.password !== password && user.password !== rawPassword) {
+      return { success: false, error: "Incorrect password" };
+    }
+
+    // Return safe user object - NEVER return password to client
+    return {
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+      },
+    };
   } catch (error) {
     console.error("loginUser error:", error);
-    return { success: false, error: "Authentication service error" };
+    return { success: false, error: "Database error" };
   }
 }
 
