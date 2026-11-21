@@ -497,6 +497,269 @@ async function main() {
     }
   }
 
+  // 7. Historical Emergency Calls (December 2025 & January 2026)
+  const historicalCalls = [
+    // December 2025
+    {
+      userId: pat1?.id,
+      driverId: dri1?.id || null,
+      latitude: 23.7806,
+      longitude: 90.4070,
+      status: "RESOLVED",
+      driverStatus: "COMPLETED",
+      createdAt: new Date("2025-12-10T11:20:00.000Z"),
+      label: "Dec 10, 2025 (Gulshan - pat1 & dri1)",
+    },
+    {
+      userId: pat2?.id,
+      driverId: dri2?.id || null,
+      latitude: 23.7461,
+      longitude: 90.3742,
+      status: "RESOLVED",
+      driverStatus: "COMPLETED",
+      createdAt: new Date("2025-12-24T19:45:00.000Z"),
+      label: "Dec 24, 2025 (Dhanmondi - pat2 & dri2)",
+    },
+    {
+      userId: pat1?.id,
+      driverId: dri1?.id || null,
+      latitude: 23.7925,
+      longitude: 90.4078,
+      status: "RESOLVED",
+      driverStatus: "COMPLETED",
+      createdAt: new Date("2025-12-30T14:15:00.000Z"),
+      label: "Dec 30, 2025 (Banani - pat1 & dri1)",
+    },
+    // January 2026
+    {
+      userId: pat1?.id,
+      driverId: dri2?.id || null,
+      latitude: 23.7508,
+      longitude: 90.3934,
+      status: "RESOLVED",
+      driverStatus: "COMPLETED",
+      createdAt: new Date("2026-01-05T08:15:00.000Z"),
+      label: "Jan 05, 2026 (Karwan Bazar - pat1 & dri2)",
+    },
+    {
+      userId: pat2?.id,
+      driverId: dri1?.id || null,
+      latitude: 23.8103,
+      longitude: 90.4125,
+      status: "RESOLVED",
+      driverStatus: "COMPLETED",
+      createdAt: new Date("2026-01-19T16:10:00.000Z"),
+      label: "Jan 19, 2026 (Central Dhaka - pat2 & dri1)",
+    },
+    {
+      userId: pat1?.id,
+      driverId: dri2?.id || null,
+      latitude: 23.7380,
+      longitude: 90.3840,
+      status: "RESOLVED",
+      driverStatus: "COMPLETED",
+      createdAt: new Date("2026-01-28T21:30:00.000Z"),
+      label: "Jan 28, 2026 (Azimpur - pat1 & dri2)",
+    },
+  ];
+
+  for (const call of historicalCalls) {
+    if (!call.userId) continue;
+    const exists = await prisma.emergencyCall.findFirst({
+      where: {
+        userId: call.userId,
+        createdAt: call.createdAt,
+      },
+    });
+
+    if (!exists) {
+      await prisma.emergencyCall.create({
+        data: {
+          latitude: call.latitude,
+          longitude: call.longitude,
+          status: call.status,
+          driverStatus: call.driverStatus,
+          userId: call.userId,
+          driverId: call.driverId,
+          createdAt: call.createdAt,
+        },
+      });
+      console.log(`  ✓ Seeded Historical Emergency Call: ${call.label}`);
+    }
+  }
+
+  // 8. Historical Appointments & Prescriptions (December 2025 & January 2026)
+  const historicalAppointments = [
+    // December 2025
+    {
+      patientId: pat1?.id,
+      doctorId: doc1?.id,
+      date: "2025-12-14T10:30:00.000Z",
+      createdAt: new Date("2025-12-14T10:30:00.000Z"),
+      prescribedAt: new Date("2025-12-14T11:15:00.000Z"),
+      reason: "Seasonal influenza with severe dry cough and fever",
+      status: "COMPLETED",
+      prescription:
+        "1. Take Napa 500mg after meal for 5 days.\n2. Tab. Fexo 120mg — 1 tablet daily at night for 7 days.\n3. Drink warm water with honey and get adequate rest.",
+      label: "Dec 14, 2025 (pat1 with doc1 - Rx completed)",
+    },
+    {
+      patientId: pat2?.id,
+      doctorId: doc2?.id,
+      date: "2025-12-28T16:00:00.000Z",
+      createdAt: new Date("2025-12-28T16:00:00.000Z"),
+      prescribedAt: new Date("2025-12-28T16:45:00.000Z"),
+      reason: "Acute gastric hyperacidity and post-meal chest discomfort",
+      status: "COMPLETED",
+      prescription:
+        "1. Take Napa 500mg after meal for 5 days.\n2. Cap. Seclo 20mg — 1 capsule twice daily before meals for 14 days.\n3. Avoid spicy and deep-fried food, and avoid lying down right after meals.",
+      label: "Dec 28, 2025 (pat2 with doc2 - Rx completed)",
+    },
+    // January 2026
+    {
+      patientId: pat1?.id,
+      doctorId: doc2?.id,
+      date: "2026-01-09T11:00:00.000Z",
+      createdAt: new Date("2026-01-09T11:00:00.000Z"),
+      prescribedAt: new Date("2026-01-09T11:40:00.000Z"),
+      reason: "Allergic bronchitis and nighttime breathing difficulty",
+      status: "COMPLETED",
+      prescription:
+        "1. Tab. Monas 10mg — 1 tablet once daily at bedtime for 30 days.\n2. Salbutamol inhaler as SOS for sudden wheezing.\n3. Avoid cold air and dust exposure.",
+      label: "Jan 09, 2026 (pat1 with doc2 - Rx completed)",
+    },
+    {
+      patientId: pat2?.id,
+      doctorId: doc1?.id,
+      date: "2026-01-22T15:30:00.000Z",
+      createdAt: new Date("2026-01-22T15:30:00.000Z"),
+      prescribedAt: new Date("2026-01-22T16:15:00.000Z"),
+      reason: "Follow-up consultation for blood pressure check & tension headache",
+      status: "COMPLETED",
+      prescription:
+        "1. Take Napa 500mg after meal for 5 days.\n2. Tab. Ace Plus — 1 tablet as needed for severe headache.\n3. Continue daily Amlodipine 5mg.\n4. Measure blood pressure 3 times per week.",
+      label: "Jan 22, 2026 (pat2 with doc1 - Rx completed)",
+    },
+  ];
+
+  for (const appt of historicalAppointments) {
+    if (!appt.patientId || !appt.doctorId) continue;
+    const exists = await prisma.appointment.findFirst({
+      where: {
+        patientId: appt.patientId,
+        reason: appt.reason,
+      },
+    });
+
+    if (!exists) {
+      await prisma.appointment.create({
+        data: {
+          patientId: appt.patientId,
+          doctorId: appt.doctorId,
+          date: appt.date,
+          reason: appt.reason,
+          status: appt.status,
+          prescription: appt.prescription,
+          createdAt: appt.createdAt,
+          prescribedAt: appt.prescribedAt,
+        },
+      });
+      console.log(`  ✓ Seeded Historical Appointment: ${appt.label}`);
+    }
+  }
+
+  // 9. Historical Pharmacy Orders (December 2025 & January 2026)
+  const napa = seededMedicines["Napa 500mg"];
+  const seclo = seededMedicines["Seclo 20mg"];
+  const sergel = seededMedicines["Sergel 20mg"];
+  const monas = seededMedicines["Monas 10mg"];
+  const acePlus = seededMedicines["Ace Plus"];
+  const fexo = seededMedicines["Fexo 120mg"];
+
+  const historicalOrders = [
+    // December 2025
+    {
+      userId: pat1?.id,
+      deliveryManId: deli1?.id || null,
+      createdAt: new Date("2025-12-15T13:00:00.000Z"),
+      deliveryAddress: "House 12, Road 4, Gulshan-1, Dhaka",
+      items: [
+        { medicine: napa, quantity: 3 },
+        { medicine: fexo, quantity: 1 },
+      ],
+      label: "Dec 15, 2025 (pat1 delivered by deli1)",
+    },
+    {
+      userId: pat2?.id,
+      deliveryManId: deli2?.id || null,
+      createdAt: new Date("2025-12-29T17:30:00.000Z"),
+      deliveryAddress: "Flat 5A, Plot 8, Road 27, Dhanmondi, Dhaka",
+      items: [
+        { medicine: seclo, quantity: 2 },
+        { medicine: sergel, quantity: 1 },
+      ],
+      label: "Dec 29, 2025 (pat2 delivered by deli2)",
+    },
+    // January 2026
+    {
+      userId: pat1?.id,
+      deliveryManId: deli2?.id || null,
+      createdAt: new Date("2026-01-10T10:45:00.000Z"),
+      deliveryAddress: "Apartment 3C, Lake Drive, Uttara Sector 3, Dhaka",
+      items: [
+        { medicine: monas, quantity: 2 },
+        { medicine: acePlus, quantity: 2 },
+      ],
+      label: "Jan 10, 2026 (pat1 delivered by deli2)",
+    },
+    {
+      userId: pat2?.id,
+      deliveryManId: deli1?.id || null,
+      createdAt: new Date("2026-01-23T15:20:00.000Z"),
+      deliveryAddress: "House 88, Road 11, Block D, Banani, Dhaka",
+      items: [
+        { medicine: napa, quantity: 4 },
+        { medicine: seclo, quantity: 2 },
+      ],
+      label: "Jan 23, 2026 (pat2 delivered by deli1)",
+    },
+  ];
+
+  for (const ord of historicalOrders) {
+    if (!ord.userId) continue;
+    const exists = await prisma.order.findFirst({
+      where: {
+        userId: ord.userId,
+        createdAt: ord.createdAt,
+      },
+    });
+
+    if (!exists) {
+      const validItems = ord.items.filter((item) => Boolean(item.medicine));
+      const total = validItems.reduce((sum, item) => sum + item.medicine.price * item.quantity, 0);
+
+      await prisma.order.create({
+        data: {
+          userId: ord.userId,
+          deliveryManId: ord.deliveryManId,
+          total,
+          status: "DELIVERED",
+          deliveryStatus: "DELIVERED",
+          deliveryAddress: ord.deliveryAddress,
+          createdAt: ord.createdAt,
+          items: {
+            create: validItems.map((item) => ({
+              medicineId: item.medicine.id,
+              quantity: item.quantity,
+              price: item.medicine.price,
+            })),
+          },
+        },
+      });
+      console.log(`  ✓ Seeded Historical Pharmacy Order: ${ord.label} ($${total.toFixed(2)})`);
+    }
+  }
+
   console.log("🎉 All 9 demo user accounts & rich sample records seeded successfully!");
 }
 
