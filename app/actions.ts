@@ -431,7 +431,7 @@ export async function getAvailableDeliveryMen() {
   try {
     return await prisma.user.findMany({
       where: {
-        role: "DELIVERY_MAN",
+        role: { in: ["DELIVERY", "DELIVERY_MAN"] },
         isAvailable: true,
       },
       select: {
@@ -869,7 +869,7 @@ export async function getAllDrivers() {
 export async function getAllDeliveryMen() {
   try {
     return await prisma.user.findMany({
-      where: { role: "DELIVERY_MAN" },
+      where: { role: { in: ["DELIVERY", "DELIVERY_MAN"] } },
       select: {
         id: true,
         name: true,
@@ -1008,3 +1008,95 @@ export async function deleteMedicine(id: string) {
     return { success: false, error: "Failed to delete medicine" };
   }
 }
+
+// ==========================================
+// 12. ROLE & ACCOUNT MANAGEMENT (Live DB)
+// ==========================================
+
+export const VALID_ROLES = ["PATIENT", "DOCTOR", "DRIVER", "DELIVERY", "ADMIN"] as const;
+export type ValidRole = (typeof VALID_ROLES)[number];
+
+export async function switchUserRole(userId: string, newRole: string) {
+  try {
+    if (!userId || typeof userId !== "string") {
+      return { success: false, error: "User ID is required" };
+    }
+    const normalizedRole = (newRole || "").trim().toUpperCase() as ValidRole;
+    if (!VALID_ROLES.includes(normalizedRole)) {
+      return {
+        success: false,
+        error: `Invalid role: ${newRole}. Must be one of ${VALID_ROLES.join(", ")}`,
+      };
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId.trim() },
+      data: { role: normalizedRole },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        phone: true,
+      },
+    });
+
+    revalidatePath("/", "layout");
+    revalidatePath("/admin");
+    revalidatePath("/patient");
+    revalidatePath("/appointments");
+    revalidatePath("/driver");
+    revalidatePath("/delivery");
+
+    return {
+      success: true,
+      user: {
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        role: updated.role,
+        phone: updated.phone,
+      },
+    };
+  } catch (error) {
+    console.error("switchUserRole error:", error);
+    return { success: false, error: "Failed to switch user role in database" };
+  }
+}
+
+export async function getDemoUsers() {
+  try {
+    const demoEmails = [
+      "pat1@test.com",
+      "pat2@test.com",
+      "doc1@test.com",
+      "doc2@test.com",
+      "dri1@test.com",
+      "dri2@test.com",
+      "deli1@test.com",
+      "deli2@test.com",
+      "admin@test.com",
+    ];
+
+    const users = await prisma.user.findMany({
+      where: {
+        email: { in: demoEmails },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        phone: true,
+      },
+    });
+
+    return demoEmails
+      .map((email) => users.find((u) => u.email.toLowerCase() === email))
+      .filter((u): u is NonNullable<typeof u> => Boolean(u));
+  } catch (error) {
+    console.error("getDemoUsers error:", error);
+    return [];
+  }
+}
+
