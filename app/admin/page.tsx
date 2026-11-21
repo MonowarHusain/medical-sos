@@ -41,8 +41,8 @@ export default function AdminPage() {
         getEmergencyCallsWithDrivers(),
         getAvailableDrivers(),
       ]);
-      setCalls(latestCalls as unknown as Call[]);
-      setDrivers(availableDrivers);
+      setCalls((latestCalls || []) as unknown as Call[]);
+      setDrivers(availableDrivers || []);
     } catch (e) {
       console.error("refreshData error:", e);
     }

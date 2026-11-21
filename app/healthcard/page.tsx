@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getHealthCard, saveHealthCard } from "../actions";
+import { getRoleRoute } from "@/lib/roleRoutes";
 import Navbar from "../components/Navbar";
 
 type HealthCardData = {
@@ -46,36 +47,49 @@ export default function HealthCardPage() {
   });
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed.role?.toUpperCase() !== "PATIENT") {
-          router.push("/");
-          return;
-        }
-        setUser(parsed);
+    const checkAuth = () => {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (parsed.role?.toUpperCase() !== "PATIENT") {
+            router.replace(getRoleRoute(parsed.role));
+            return;
+          }
+          setUser(parsed);
 
-        getHealthCard(parsed.id)
-          .then((data) => {
-            if (data) {
-              setCard(data);
-            }
-          })
-          .catch((err) => {
-            console.error("getHealthCard error:", err);
-          })
-          .finally(() => {
-            setLoading(false);
-          });
-      } catch (e) {
-        router.push("/login");
+          getHealthCard(parsed.id)
+            .then((data) => {
+              if (data) {
+                setCard(data);
+              }
+            })
+            .catch((err) => {
+              console.error("getHealthCard error:", err);
+            })
+            .finally(() => {
+              setLoading(false);
+            });
+        } catch {
+          router.replace("/login");
+          setLoading(false);
+        }
+      } else {
+        router.replace("/login");
         setLoading(false);
       }
-    } else {
-      router.push("/login");
-      setLoading(false);
-    }
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("user-session-updated", checkAuth);
+    window.addEventListener("user-state-change", checkAuth);
+
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("user-session-updated", checkAuth);
+      window.removeEventListener("user-state-change", checkAuth);
+    };
   }, [router]);
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
