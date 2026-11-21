@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { getMedicines, placeOrder, getUserOrders } from "../actions";
 
@@ -12,6 +14,7 @@ type CartItem = {
 };
 
 export default function PharmacyPage() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [medicines, setMedicines] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -19,8 +22,27 @@ export default function PharmacyPage() {
   const [address, setAddress] = useState("");
   const [showCartModal, setShowCartModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [pageFeedback, setPageFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [modalFeedback, setModalFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fetchCatalog = useCallback(async (userId?: string) => {
+    try {
+      const medList = await getMedicines();
+      setMedicines(medList);
+      if (userId) {
+        const orderList = await getUserOrders(userId);
+        setOrders(orderList);
+      }
+      setCatalogError(null);
+    } catch (e) {
+      console.error("fetchCatalog error:", e);
+      setCatalogError("Failed to load medicines from database. Please retry.");
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem("user");
@@ -28,24 +50,29 @@ export default function PharmacyPage() {
       try {
         const parsedUser = JSON.parse(saved);
         setUser(parsedUser);
-        getMedicines().then(setMedicines);
-        getUserOrders(parsedUser.id).then(setOrders);
+        fetchCatalog(parsedUser.id);
       } catch (e) {
         console.error("Failed to parse user:", e);
+        router.push("/login");
       }
+    } else {
+      router.push("/login");
     }
-  }, []);
+  }, [router, fetchCatalog]);
 
   // Poll for order delivery updates with proper cleanup
   useEffect(() => {
     if (!user) return;
 
     let isMounted = true;
-    const interval = setInterval(() => {
-      getUserOrders(user.id).then((data) => {
+    const interval = setInterval(async () => {
+      try {
+        const data = await getUserOrders(user.id);
         if (isMounted) setOrders(data);
-      });
-    }, 3000);
+      } catch (e) {
+        console.error("order poll error:", e);
+      }
+    }, 3500);
 
     return () => {
       isMounted = false;
@@ -138,11 +165,17 @@ export default function PharmacyPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4 p-4">
         <div className="flex items-center gap-3 text-slate-400">
           <div className="w-5 h-5 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
-          <span>Loading Pharmacy catalog...</span>
+          <span>Authenticating Pharmacy access...</span>
         </div>
+        <p className="text-xs text-slate-500">
+          Taking too long?{" "}
+          <Link href="/login" className="text-red-400 underline font-semibold">
+            Return to Login
+          </Link>
+        </p>
       </div>
     );
   }
@@ -152,6 +185,25 @@ export default function PharmacyPage() {
       <Navbar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
+        {/* Catalog Error Banner with Retry */}
+        {catalogError && (
+          <div className="mb-6 p-4 rounded-xl bg-red-950/70 border border-red-800 text-red-200 text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{catalogError}</span>
+            </div>
+            <button
+              onClick={() => {
+                setCatalogLoading(true);
+                fetchCatalog(user?.id);
+              }}
+              className="px-3 py-1 bg-red-800 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-slate-800 pb-5">
           <div>

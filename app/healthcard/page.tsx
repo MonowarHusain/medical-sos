@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getHealthCard, saveHealthCard } from "../actions";
 import Navbar from "../components/Navbar";
 
@@ -55,17 +56,25 @@ export default function HealthCardPage() {
         }
         setUser(parsed);
 
-        getHealthCard(parsed.id).then((data) => {
-          if (data) {
-            setCard(data);
-          }
-          setLoading(false);
-        });
+        getHealthCard(parsed.id)
+          .then((data) => {
+            if (data) {
+              setCard(data);
+            }
+          })
+          .catch((err) => {
+            console.error("getHealthCard error:", err);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
       } catch (e) {
-        router.push("/");
+        router.push("/login");
+        setLoading(false);
       }
     } else {
-      router.push("/");
+      router.push("/login");
+      setLoading(false);
     }
   }, [router]);
 
@@ -96,11 +105,17 @@ export default function HealthCardPage() {
 
   if (!user || loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4 p-4">
         <div className="flex items-center gap-3 text-slate-400">
           <div className="w-5 h-5 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
           <span>Loading Health Card...</span>
         </div>
+        <p className="text-xs text-slate-500">
+          Taking too long?{" "}
+          <Link href="/login" className="text-red-400 underline font-semibold">
+            Return to Login
+          </Link>
+        </p>
       </div>
     );
   }

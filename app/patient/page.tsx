@@ -1,15 +1,24 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { triggerSOS, checkCallStatus, getPatientCalls } from "../actions";
 import Navbar from "../components/Navbar";
 
 export default function PatientDashboard() {
+  const router = useRouter();
   const [status, setStatus] = useState<"IDLE" | "LOCATING" | "WAITING" | "DISPATCHED">("IDLE");
   const [callId, setCallId] = useState<string | null>(null);
   const [locationNote, setLocationNote] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "warning" | "error" | "info" | "success"; text: string } | null>(null);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("user");
+    if (!saved) {
+      router.push("/login");
+    }
+  }, [router]);
 
   // Default Dhaka fallback coordinates
   const DHAKA_LAT = 23.8103;
@@ -233,38 +242,49 @@ export default function PatientDashboard() {
 function HistoryList({ refreshKey }: { refreshKey: number }) {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchHistory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+      const user = userStr ? JSON.parse(userStr) : null;
+      if (user?.id) {
+        const calls = await getPatientCalls(user.id);
+        setHistory(calls);
+        setError(null);
+      }
+    } catch (e) {
+      console.error("fetchHistory error:", e);
+      setError("Failed to load records. Check database connection.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchHistory = async () => {
-      try {
-        const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
-        const user = userStr ? JSON.parse(userStr) : null;
-        if (user?.id) {
-          const calls = await getPatientCalls(user.id);
-          if (isMounted) {
-            setHistory(calls);
-          }
-        }
-      } catch (e) {
-        console.error("fetchHistory error:", e);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
     fetchHistory();
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshKey]);
+  }, [refreshKey, fetchHistory]);
 
   if (loading) {
     return (
       <div className="text-center py-6 text-slate-500 text-sm flex items-center justify-center gap-2">
         <div className="w-4 h-4 border-2 border-slate-600 border-t-slate-400 rounded-full animate-spin" />
         <span>Loading call records...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-950/60 border border-red-800 rounded-xl text-center text-sm text-red-200">
+        <p className="mb-2">⚠️ {error}</p>
+        <button
+          onClick={fetchHistory}
+          className="px-3 py-1 bg-red-800 hover:bg-red-700 text-white rounded text-xs font-bold transition"
+        >
+          Retry
+        </button>
       </div>
     );
   }

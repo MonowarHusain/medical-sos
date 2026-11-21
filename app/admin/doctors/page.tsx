@@ -1,22 +1,39 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getAllDoctors } from "../../actions";
 
 export default function DoctorsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [doctors, setDoctors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        async function fetchDoctors() {
+    const fetchDoctors = useCallback(async () => {
+        setLoading(true);
+        try {
             const data = await getAllDoctors();
             setDoctors(data);
+            setError(null);
+        } catch (err) {
+            console.error("fetchDoctors error:", err);
+            setError("Failed to load doctors list from database.");
+        } finally {
             setLoading(false);
         }
-        fetchDoctors();
     }, []);
 
-    if (loading) return <div className="text-white">Loading doctors...</div>;
+    useEffect(() => {
+        fetchDoctors();
+    }, [fetchDoctors]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center p-12 text-slate-400 gap-3">
+                <div className="w-5 h-5 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
+                <span>Loading doctors...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -26,6 +43,18 @@ export default function DoctorsPage() {
                     Total: {doctors.length}
                 </span>
             </div>
+
+            {error && (
+                <div className="p-4 bg-red-950/60 border border-red-800 rounded-xl flex items-center justify-between text-sm text-red-200">
+                    <span>⚠️ {error}</span>
+                    <button
+                        onClick={fetchDoctors}
+                        className="px-3 py-1 bg-red-800 hover:bg-red-700 text-white rounded text-xs font-bold transition"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 gap-6">
                 {doctors.map((doc) => (

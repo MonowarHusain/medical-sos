@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   getDriverAssignedCalls,
   updateDriverStatus,
@@ -51,10 +52,10 @@ export default function DriverDashboard() {
           }
         });
       } catch (e) {
-        router.push("/");
+        router.push("/login");
       }
     } else {
-      router.push("/");
+      router.push("/login");
     }
   }, [router]);
 
@@ -68,10 +69,13 @@ export default function DriverDashboard() {
         const data = await getDriverAssignedCalls(user.id);
         if (isMounted) {
           setCalls(data as unknown as EmergencyCall[]);
-          setLoading(false);
         }
       } catch (e) {
         console.error("getDriverAssignedCalls error:", e);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -172,11 +176,17 @@ export default function DriverDashboard() {
 
   if (!user || loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4 p-4">
         <div className="flex items-center gap-3 text-slate-400">
           <div className="w-5 h-5 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
           <span>Connecting to Driver dispatch...</span>
         </div>
+        <p className="text-xs text-slate-500">
+          Taking too long?{" "}
+          <Link href="/login" className="text-red-400 underline font-semibold">
+            Return to Login
+          </Link>
+        </p>
       </div>
     );
   }

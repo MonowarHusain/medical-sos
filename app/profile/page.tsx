@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { getUserProfile, updateUserProfile } from "../actions";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -16,21 +19,30 @@ export default function ProfilePage() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        getUserProfile(parsed.id).then((data) => {
-          if (data) {
-            setUser(data);
-          } else {
+        getUserProfile(parsed.id)
+          .then((data) => {
+            if (data) {
+              setUser(data);
+            } else {
+              setUser(parsed);
+            }
+          })
+          .catch((err) => {
+            console.error("getUserProfile error:", err);
             setUser(parsed);
-          }
-          setLoading(false);
-        });
+          })
+          .finally(() => {
+            setLoading(false);
+          });
       } catch (e) {
         setLoading(false);
+        router.push("/login");
       }
     } else {
       setLoading(false);
+      router.push("/login");
     }
-  }, []);
+  }, [router]);
 
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -64,11 +76,17 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4 p-4">
         <div className="flex items-center gap-3 text-slate-400">
           <div className="w-5 h-5 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
           <span>Loading user profile...</span>
         </div>
+        <p className="text-xs text-slate-500">
+          Taking too long?{" "}
+          <Link href="/login" className="text-red-400 underline font-semibold">
+            Return to Login
+          </Link>
+        </p>
       </div>
     );
   }

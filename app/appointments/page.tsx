@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { bookAppointment, getUserAppointments, submitPrescription } from "../actions";
 import Navbar from "../components/Navbar";
 
 export default function AppointmentsPage() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingFeedback, setBookingFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [rxLoadingId, setRxLoadingId] = useState<string | null>(null);
@@ -19,31 +24,35 @@ export default function AppointmentsPage() {
         setUser(JSON.parse(savedUser));
       } catch (e) {
         console.error("Failed to parse user:", e);
+        router.push("/login");
       }
+    } else {
+      router.push("/login");
     }
-  }, []);
+  }, [router]);
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await getUserAppointments(user.id, user.role);
+      setAppointments(data);
+      setFetchError(null);
+    } catch (e) {
+      console.error("getUserAppointments error:", e);
+      setFetchError("Failed to load appointments. Please check connection.");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
 
-    let isMounted = true;
-    const fetchData = async () => {
-      try {
-        const data = await getUserAppointments(user.id, user.role);
-        if (isMounted) setAppointments(data);
-      } catch (e) {
-        console.error("getUserAppointments error:", e);
-      }
-    };
-
     fetchData();
-    const interval = setInterval(fetchData, 2500);
+    const interval = setInterval(fetchData, 3000);
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [user]);
+    return () => clearInterval(interval);
+  }, [user, fetchData]);
 
   const handleBook = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -61,9 +70,7 @@ export default function AppointmentsPage() {
           text: "Appointment booked successfully! Our doctors can view your consultation request.",
         });
         (e.target as HTMLFormElement).reset();
-        // Refresh immediate
-        const data = await getUserAppointments(user.id, user.role);
-        setAppointments(data);
+        await fetchData();
       } else {
         setBookingFeedback({
           type: "error",
@@ -86,8 +93,7 @@ export default function AppointmentsPage() {
       const res = await submitPrescription(appointmentId, text.trim());
       if (res.success) {
         setRxTexts((prev) => ({ ...prev, [appointmentId]: "" }));
-        const data = await getUserAppointments(user.id, user.role);
-        setAppointments(data);
+        await fetchData();
       }
     } catch (err) {
       console.error("Rx submit error:", err);
@@ -98,11 +104,17 @@ export default function AppointmentsPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4 p-4">
         <div className="flex items-center gap-3 text-slate-400">
           <div className="w-5 h-5 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
-          <span>Loading consultation session...</span>
+          <span>Authenticating consultation session...</span>
         </div>
+        <p className="text-xs text-slate-500">
+          Taking too long?{" "}
+          <Link href="/login" className="text-red-400 underline font-semibold">
+            Return to Login
+          </Link>
+        </p>
       </div>
     );
   }
@@ -117,7 +129,7 @@ export default function AppointmentsPage() {
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8 border-b border-slate-800 pb-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b border-slate-800 pb-5">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-2">
               <span>{isDoctor ? "👨‍⚕️" : "📅"}</span>
@@ -140,6 +152,24 @@ export default function AppointmentsPage() {
             </span>
           </div>
         </div>
+
+        {fetchError && (
+          <div className="mb-6 p-4 rounded-xl bg-red-950/70 border border-red-800 text-red-200 text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{fetchError}</span>
+            </div>
+            <button
+              onClick={() => {
+                setLoading(true);
+                fetchData();
+              }}
+              className="px-3 py-1 bg-red-800 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         <div className={`grid gap-8 ${isPatient ? "lg:grid-cols-5" : "grid-cols-1"}`}>
           {/* LEFT: Booking Form (For PATIENTS) */}

@@ -35,14 +35,18 @@ export default function OrdersAdminPage() {
     const [activeTab, setActiveTab] = useState<'dispatch' | 'personnel'>('dispatch');
 
     const refreshData = async () => {
-        const [latestOrders, availableDelivery, allDelivery] = await Promise.all([
-            getOrdersWithDelivery(),
-            getAvailableDeliveryMen(),
-            getAllDeliveryMen()
-        ]);
-        setOrders(latestOrders);
-        setDeliveryMen(availableDelivery as any); // Types might be slightly loose here
-        setAllDeliveryMen(allDelivery as any);
+        try {
+            const [latestOrders, availableDelivery, allDelivery] = await Promise.all([
+                getOrdersWithDelivery(),
+                getAvailableDeliveryMen(),
+                getAllDeliveryMen()
+            ]);
+            setOrders(latestOrders);
+            setDeliveryMen(availableDelivery as any);
+            setAllDeliveryMen(allDelivery as any);
+        } catch (err) {
+            console.error("refreshData error:", err);
+        }
     };
 
     useEffect(() => {

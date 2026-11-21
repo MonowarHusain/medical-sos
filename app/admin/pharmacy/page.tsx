@@ -26,8 +26,12 @@ export default function PharmacyAdminPage() {
     });
 
     const refreshData = async () => {
-        const data = await getMedicines();
-        setMedicines(data);
+        try {
+            const data = await getMedicines();
+            setMedicines(data);
+        } catch (err) {
+            console.error("refreshData error in pharmacy admin:", err);
+        }
     };
 
     useEffect(() => {
