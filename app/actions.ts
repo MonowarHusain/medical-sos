@@ -1,77 +1,113 @@
 "use server";
 
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-const prisma = new PrismaClient();
+// ==========================================
+// 1. SOS & EMERGENCY CALLS
+// ==========================================
 
-// 1. Trigger SOS (Returns the Call ID now)
 export async function triggerSOS(lat: number, lng: number, userId?: string) {
   try {
-    const data: any = {
+    if (typeof lat !== "number" || isNaN(lat) || typeof lng !== "number" || isNaN(lng)) {
+      return { success: false, callId: null, error: "Invalid coordinates provided" };
+    }
+
+    const data: {
+      latitude: number;
+      longitude: number;
+      status: string;
+      userId?: string;
+    } = {
       latitude: lat,
       longitude: lng,
       status: "PENDING",
     };
 
-    if (userId) {
-      data.userId = userId;
+    if (userId && typeof userId === "string" && userId.trim().length > 0) {
+      data.userId = userId.trim();
     }
 
     const call = await prisma.emergencyCall.create({ data });
     revalidatePath("/admin");
-    return { success: true, callId: call.id }; // <--- Returning ID is key!
+    return { success: true, callId: call.id };
   } catch (error) {
-    console.error(error);
-    return { success: false, callId: null };
+    console.error("triggerSOS error:", error);
+    return { success: false, callId: null, error: "Failed to create emergency call" };
   }
 }
 
-// 2. Check Status (The User calls this every 2 seconds)
 export async function checkCallStatus(callId: string) {
-  const call = await prisma.emergencyCall.findUnique({
-    where: { id: callId },
-  });
-  return call?.status || "PENDING";
+  if (!callId || typeof callId !== "string") return "PENDING";
+  try {
+    const call = await prisma.emergencyCall.findUnique({
+      where: { id: callId },
+      select: { status: true, driverStatus: true },
+    });
+    return call?.status || "PENDING";
+  } catch (error) {
+    console.error("checkCallStatus error:", error);
+    return "PENDING";
+  }
 }
 
-// 3. Admin: Get List
 export async function getEmergencyCalls() {
-  const calls = await prisma.emergencyCall.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-  return calls;
+  try {
+    return await prisma.emergencyCall.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    console.error("getEmergencyCalls error:", error);
+    return [];
+  }
 }
 
-// 4. Admin: Resolve
 export async function resolveCall(id: string) {
-  await prisma.emergencyCall.update({
-    where: { id },
-    data: { status: "RESOLVED" },
-  });
-  revalidatePath("/admin");
+  if (!id) return { success: false, error: "Call ID required" };
+  try {
+    await prisma.emergencyCall.update({
+      where: { id },
+      data: { status: "RESOLVED" },
+    });
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    console.error("resolveCall error:", error);
+    return { success: false, error: "Failed to resolve call" };
+  }
 }
 
 export async function getPatientCalls(userId: string) {
-  return await prisma.emergencyCall.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    include: {
-      driver: {
-        select: { name: true, phone: true }
-      }
-    }
-  });
+  if (!userId) return [];
+  try {
+    return await prisma.emergencyCall.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        driver: {
+          select: { name: true, phone: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("getPatientCalls error:", error);
+    return [];
+  }
 }
-// ... keep your existing SOS functions (triggerSOS, etc.) above ...
 
-// --- NEW AUTH FUNCTIONS ---
+// ==========================================
+// 2. AUTHENTICATION (Never return password)
+// ==========================================
 
 export async function registerUser(formData: FormData) {
-  const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
+  const name = (formData.get("name") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim().toLowerCase();
   const password = formData.get("password") as string;
-  const role = formData.get("role") as string || "PATIENT";
+  const role = ((formData.get("role") as string)?.trim().toUpperCase() || "PATIENT");
+
+  if (!name || !email || !password) {
+    return { success: false, error: "Name, email, and password are required" };
+  }
 
   try {
     await prisma.user.create({
@@ -79,147 +115,242 @@ export async function registerUser(formData: FormData) {
     });
     return { success: true };
   } catch (error) {
-    return { success: false, error: "Email already exists" };
+    console.error("registerUser error:", error);
+    return { success: false, error: "Email already exists or registration failed" };
   }
 }
 
 export async function loginUser(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = (formData.get("email") as string)?.trim().toLowerCase();
   const password = formData.get("password") as string;
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-  });
-
-  if (user && user.password === password) {
-    // In a real app, we would set a cookie here. 
-    // For this demo, we return the user info to save in LocalStorage.
-    return { success: true, user: { id: user.id, name: user.name, role: user.role } };
+  if (!email || !password) {
+    return { success: false, error: "Email and password are required" };
   }
 
-  return { success: false };
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (user && user.password === password) {
+      // Return safe user object - NEVER return password to client
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+        },
+      };
+    }
+
+    return { success: false, error: "Invalid email or password" };
+  } catch (error) {
+    console.error("loginUser error:", error);
+    return { success: false, error: "Authentication service error" };
+  }
 }
 
-// --- APPOINTMENT FUNCTIONS ---
+// ==========================================
+// 3. APPOINTMENTS
+// ==========================================
 
 export async function bookAppointment(formData: FormData) {
-  const patientId = formData.get("patientId") as string;
-  const reason = formData.get("reason") as string;
-  const date = formData.get("date") as string;
+  const patientId = (formData.get("patientId") as string)?.trim();
+  const reason = (formData.get("reason") as string)?.trim();
+  const date = (formData.get("date") as string)?.trim();
 
-  // Validate date is in the future
+  if (!patientId || !reason || !date) {
+    return { success: false, error: "All fields are required" };
+  }
+
   const selectedDate = new Date(date);
   const now = new Date();
 
-  // Allow a small buffer (e.g. 1 minute) or just strictly check
-  if (selectedDate < now) {
-    console.error("Attempted to book past date");
-    // In a real app we'd throw or return specific error
-    return { success: false };
+  // Allow 1 minute buffer for local clock drift
+  if (selectedDate.getTime() < now.getTime() - 60000) {
+    return { success: false, error: "Appointment date must be in the future" };
   }
 
-  await prisma.appointment.create({
-    data: {
-      patientId,
-      reason,
-      date,
-      status: "CONFIRMED", // Auto-confirm for demo
-      createdAt: new Date(),
-    }
-  });
-  return { success: true };
+  try {
+    await prisma.appointment.create({
+      data: {
+        patientId,
+        reason,
+        date,
+        status: "CONFIRMED",
+        createdAt: new Date(),
+      },
+    });
+    revalidatePath("/appointments");
+    revalidatePath("/admin/appointments");
+    return { success: true };
+  } catch (error) {
+    console.error("bookAppointment error:", error);
+    return { success: false, error: "Failed to book appointment" };
+  }
 }
 
 export async function getUserAppointments(userId: string, role: string) {
-  if (role === "PATIENT") {
-    return await prisma.appointment.findMany({
-      where: { patientId: userId },
-      include: { doctor: true }
-    });
-  } else if (role === "DOCTOR") {
-    // Doctors see ALL appointments for simplicity in demo
-    return await prisma.appointment.findMany({
-      include: { patient: true }
-    });
+  if (!userId) return [];
+  try {
+    const normalizedRole = role?.toUpperCase();
+    if (normalizedRole === "PATIENT") {
+      return await prisma.appointment.findMany({
+        where: { patientId: userId },
+        include: {
+          doctor: {
+            select: { id: true, name: true, email: true, phone: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } else if (normalizedRole === "DOCTOR") {
+      return await prisma.appointment.findMany({
+        include: {
+          patient: {
+            select: { id: true, name: true, email: true, phone: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+    return [];
+  } catch (error) {
+    console.error("getUserAppointments error:", error);
+    return [];
   }
-  return [];
 }
-// --- PROFILE FUNCTIONS ---
 
-// 1. Get latest user details (so the profile shows real data)
+// ==========================================
+// 4. USER PROFILE
+// ==========================================
+
 export async function getUserProfile(userId: string) {
-  return await prisma.user.findUnique({
-    where: { id: userId },
-  });
+  if (!userId) return null;
+  try {
+    return await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        phone: true,
+        isAvailable: true,
+        currentLatitude: true,
+        currentLongitude: true,
+      },
+    });
+  } catch (error) {
+    console.error("getUserProfile error:", error);
+    return null;
+  }
 }
 
-// 2. Update user details
 export async function updateUserProfile(userId: string, formData: FormData) {
-  const name = formData.get("name") as string;
-  const password = formData.get("password") as string;
-  // In a real app, validation goes here
+  if (!userId) return { success: false, error: "User ID required" };
+  const name = (formData.get("name") as string)?.trim();
+  const password = (formData.get("password") as string)?.trim();
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { name, password }
-  });
+  if (!name) {
+    return { success: false, error: "Name is required" };
+  }
 
-  return { success: true };
+  try {
+    const updateData: { name: string; password?: string } = { name };
+    if (password && password.length > 0) {
+      updateData.password = password;
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    revalidatePath("/profile");
+    return { success: true };
+  } catch (error) {
+    console.error("updateUserProfile error:", error);
+    return { success: false, error: "Failed to update profile" };
+  }
 }
 
-// --- PRESCRIPTION FUNCTIONS ---
+// ==========================================
+// 5. PRESCRIPTIONS
+// ==========================================
 
 export async function submitPrescription(appointmentId: string, text: string) {
+  if (!appointmentId || !text?.trim()) {
+    return { success: false, error: "Prescription text cannot be empty" };
+  }
+
   try {
     await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
-        prescription: text,
-        status: "COMPLETED", // Auto-mark as completed
-        prescribedAt: new Date()
-      }
+        prescription: text.trim(),
+        status: "COMPLETED",
+        prescribedAt: new Date(),
+      },
     });
+    revalidatePath("/appointments");
+    revalidatePath("/admin/appointments");
     return { success: true };
   } catch (error) {
-    return { success: false };
+    console.error("submitPrescription error:", error);
+    return { success: false, error: "Failed to submit prescription" };
   }
 }
 
-// --- PHARMACY FUNCTIONS ---
+// ==========================================
+// 6. PHARMACY & MEDICINES
+// ==========================================
 
-// 1. Get List of Medicines
 export async function getMedicines() {
-  return await prisma.medicine.findMany();
+  try {
+    return await prisma.medicine.findMany({
+      orderBy: { name: "asc" },
+    });
+  } catch (error) {
+    console.error("getMedicines error:", error);
+    return [];
+  }
 }
 
-// 2. Place Order (with multiple items)
-export async function placeOrder(userId: string, items: { medicineId: string; quantity: number; price: number }[], total: number, address: string) {
+export async function placeOrder(
+  userId: string,
+  items: { medicineId: string; quantity: number; price: number }[],
+  total: number,
+  address: string
+) {
   try {
-    // value-check
+    if (!userId) return { success: false, error: "User authentication required" };
     if (!items || items.length === 0) return { success: false, error: "No items in cart" };
+    if (!address || !address.trim()) return { success: false, error: "Delivery address is required" };
 
-    // Transaction to ensure order and items are created together
     await prisma.$transaction(async (tx) => {
-      // Create Order
       const order = await tx.order.create({
         data: {
           userId,
-          total,
+          total: total > 0 ? total : 0,
           status: "PENDING",
-          deliveryAddress: address,
-          createdAt: new Date()
-        }
+          deliveryAddress: address.trim(),
+          createdAt: new Date(),
+        },
       });
 
-      // Create OrderItems
       for (const item of items) {
         await tx.orderItem.create({
           data: {
             orderId: order.id,
             medicineId: item.medicineId,
             quantity: item.quantity,
-            price: item.price
-          }
+            price: item.price,
+          },
         });
       }
     });
@@ -228,93 +359,106 @@ export async function placeOrder(userId: string, items: { medicineId: string; qu
     revalidatePath("/admin/orders");
     return { success: true };
   } catch (error) {
-    console.error(error);
+    console.error("placeOrder error:", error);
     return { success: false, error: "Failed to place order" };
   }
 }
 
-// 3. Get User Orders (Including Items)
 export async function getUserOrders(userId: string) {
-  return await prisma.order.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      items: {
-        include: {
-          medicine: true
-        }
+  if (!userId) return [];
+  try {
+    return await prisma.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        items: {
+          include: {
+            medicine: true,
+          },
+        },
+        deliveryMan: {
+          select: { name: true, phone: true },
+        },
       },
-      deliveryMan: {
-        select: { name: true, phone: true }
-      }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("getUserOrders error:", error);
+    return [];
+  }
 }
 
+// ==========================================
+// 7. DELIVERY PERSONNEL OPERATIONS
+// ==========================================
 
-// --- DELIVERY MAN FUNCTIONS ---
-
-// Get all available delivery personnel
 export async function getAvailableDeliveryMen() {
-  return await prisma.user.findMany({
-    where: {
-      role: "DELIVERY_MAN",
-      isAvailable: true
-    },
-    select: {
-      id: true,
-      name: true,
-      phone: true
-    }
-  });
+  try {
+    return await prisma.user.findMany({
+      where: {
+        role: "DELIVERY_MAN",
+        isAvailable: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+      },
+    });
+  } catch (error) {
+    console.error("getAvailableDeliveryMen error:", error);
+    return [];
+  }
 }
 
-// Admin assigns a delivery man to an order
 export async function assignDeliveryManToOrder(orderId: string, deliveryManId: string) {
+  if (!orderId || !deliveryManId) return { success: false, error: "Missing parameters" };
   try {
     await prisma.order.update({
       where: { id: orderId },
       data: {
         deliveryManId,
         deliveryStatus: "ASSIGNED",
-        status: "ASSIGNED"
-      }
+        status: "ASSIGNED",
+      },
     });
 
-    // Mark delivery man as busy
     await prisma.user.update({
       where: { id: deliveryManId },
-      data: { isAvailable: false }
+      data: { isAvailable: false },
     });
 
     revalidatePath("/admin/orders");
     revalidatePath("/delivery");
     return { success: true };
   } catch (error) {
-    console.error(error);
-    return { success: false };
+    console.error("assignDeliveryManToOrder error:", error);
+    return { success: false, error: "Failed to assign delivery personnel" };
   }
 }
 
-// Get orders assigned to a specific delivery man
 export async function getDeliveryManAssignedOrders(deliveryManId: string) {
-  return await prisma.order.findMany({
-    where: { deliveryManId },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      user: {
-        select: { name: true, phone: true }
-      }
-    }
-  });
+  if (!deliveryManId) return [];
+  try {
+    return await prisma.order.findMany({
+      where: { deliveryManId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: { name: true, phone: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("getDeliveryManAssignedOrders error:", error);
+    return [];
+  }
 }
 
-// Delivery man updates order status
 export async function updateOrderDeliveryStatus(orderId: string, deliveryStatus: string, deliveryManId?: string) {
+  if (!orderId || !deliveryStatus) return { success: false, error: "Missing status data" };
   try {
-    const updateData: any = { deliveryStatus };
+    const updateData: { deliveryStatus: string; status?: string } = { deliveryStatus };
 
-    // If delivered, also mark the main status as DELIVERED
     if (deliveryStatus === "DELIVERED") {
       updateData.status = "DELIVERED";
     } else if (deliveryStatus === "OUT_FOR_DELIVERY") {
@@ -323,14 +467,13 @@ export async function updateOrderDeliveryStatus(orderId: string, deliveryStatus:
 
     await prisma.order.update({
       where: { id: orderId },
-      data: updateData
+      data: updateData,
     });
 
-    // If delivered, mark delivery man as available again
     if (deliveryStatus === "DELIVERED" && deliveryManId) {
       await prisma.user.update({
         where: { id: deliveryManId },
-        data: { isAvailable: true }
+        data: { isAvailable: true },
       });
     }
 
@@ -339,141 +482,156 @@ export async function updateOrderDeliveryStatus(orderId: string, deliveryStatus:
     revalidatePath("/pharmacy");
     return { success: true };
   } catch (error) {
-    console.error(error);
-    return { success: false };
+    console.error("updateOrderDeliveryStatus error:", error);
+    return { success: false, error: "Failed to update delivery status" };
   }
 }
 
-// Get orders with delivery info (for admin)
 export async function getOrdersWithDelivery() {
-  return await prisma.order.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      user: {
-        select: { name: true, email: true }
+  try {
+    return await prisma.order.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: { name: true, email: true },
+        },
+        items: {
+          include: {
+            medicine: true,
+          },
+        },
+        deliveryMan: {
+          select: { id: true, name: true, phone: true },
+        },
       },
-      items: {
-        include: {
-          medicine: true
-        }
-      },
-      deliveryMan: {
-        select: { id: true, name: true, phone: true }
-      }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("getOrdersWithDelivery error:", error);
+    return [];
+  }
 }
 
-// --- DRIVER FUNCTIONS ---
+// ==========================================
+// 8. DRIVER OPERATIONS
+// ==========================================
 
-// Get all available drivers
 export async function getAvailableDrivers() {
-  return await prisma.user.findMany({
-    where: {
-      role: "DRIVER",
-      isAvailable: true
-    },
-    select: {
-      id: true,
-      name: true,
-      phone: true,
-      currentLatitude: true,
-      currentLongitude: true
-    }
-  });
+  try {
+    return await prisma.user.findMany({
+      where: {
+        role: "DRIVER",
+        isAvailable: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        currentLatitude: true,
+        currentLongitude: true,
+      },
+    });
+  } catch (error) {
+    console.error("getAvailableDrivers error:", error);
+    return [];
+  }
 }
 
-// Admin assigns a driver to a call
 export async function assignDriverToCall(callId: string, driverId: string) {
+  if (!callId || !driverId) return { success: false, error: "Missing call or driver ID" };
   try {
     await prisma.emergencyCall.update({
       where: { id: callId },
       data: {
         driverId,
         driverStatus: "ASSIGNED",
-        status: "DISPATCHED"
-      }
+        status: "DISPATCHED",
+      },
     });
 
-    // Mark driver as busy
     await prisma.user.update({
       where: { id: driverId },
-      data: { isAvailable: false }
+      data: { isAvailable: false },
     });
 
     revalidatePath("/admin");
     revalidatePath("/driver");
     return { success: true };
   } catch (error) {
-    console.error(error);
-    return { success: false };
+    console.error("assignDriverToCall error:", error);
+    return { success: false, error: "Failed to assign driver" };
   }
 }
 
-// Get calls assigned to a specific driver
-// Get calls assigned to a specific driver
 export async function getDriverAssignedCalls(driverId: string) {
-  return await prisma.emergencyCall.findMany({
-    where: { driverId },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      user: {
-        select: { name: true, phone: true }
-      }
-    }
-  });
+  if (!driverId) return [];
+  try {
+    return await prisma.emergencyCall.findMany({
+      where: { driverId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: { name: true, phone: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("getDriverAssignedCalls error:", error);
+    return [];
+  }
 }
 
-// Toggle driver availability
 export async function updateDriverStatus(driverId: string, isAvailable: boolean) {
+  if (!driverId) return { success: false, error: "Driver ID required" };
   try {
     await prisma.user.update({
       where: { id: driverId },
-      data: { isAvailable }
+      data: { isAvailable },
     });
     revalidatePath("/driver");
     return { success: true };
   } catch (error) {
-    return { success: false };
+    console.error("updateDriverStatus error:", error);
+    return { success: false, error: "Failed to update driver status" };
   }
 }
 
-// Update driver's current location
 export async function updateDriverLocation(driverId: string, lat: number, lng: number) {
+  if (!driverId || typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)) {
+    return { success: false, error: "Invalid driver ID or coordinates" };
+  }
   try {
     await prisma.user.update({
       where: { id: driverId },
       data: {
         currentLatitude: lat,
-        currentLongitude: lng
-      }
+        currentLongitude: lng,
+      },
     });
     return { success: true };
   } catch (error) {
-    return { success: false };
+    console.error("updateDriverLocation error:", error);
+    return { success: false, error: "Failed to update location" };
   }
 }
 
-// Driver updates call status (EN_ROUTE, ARRIVED, COMPLETED)
 export async function updateCallDriverStatus(callId: string, driverStatus: string, driverId?: string) {
+  if (!callId || !driverStatus) return { success: false, error: "Missing parameters" };
   try {
-    const updateData: any = { driverStatus };
+    const updateData: { driverStatus: string; status?: string } = { driverStatus };
 
-    // If completed, also mark the main status as RESOLVED
     if (driverStatus === "COMPLETED") {
       updateData.status = "RESOLVED";
     }
 
     await prisma.emergencyCall.update({
       where: { id: callId },
-      data: updateData
+      data: updateData,
     });
 
-    // If completed, mark driver as available again
     if (driverStatus === "COMPLETED" && driverId) {
       await prisma.user.update({
         where: { id: driverId },
-        data: { isAvailable: true }
+        data: { isAvailable: true },
       });
     }
 
@@ -481,197 +639,261 @@ export async function updateCallDriverStatus(callId: string, driverStatus: strin
     revalidatePath("/admin");
     return { success: true };
   } catch (error) {
-    console.error(error);
-    return { success: false };
+    console.error("updateCallDriverStatus error:", error);
+    return { success: false, error: "Failed to update call status" };
   }
 }
 
-// Get emergency calls with driver AND patient info (for admin)
 export async function getEmergencyCallsWithDrivers() {
-  return await prisma.emergencyCall.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      driver: {
-        select: {
-          id: true,
-          name: true,
-          phone: true
-        }
+  try {
+    return await prisma.emergencyCall.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            phone: true,
+          },
+        },
       },
-      user: {
-        select: {
-          name: true,
-          phone: true
-        }
-      }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("getEmergencyCallsWithDrivers error:", error);
+    return [];
+  }
 }
 
-// 6. Get All Appointments (Centralized Admin View)
+// ==========================================
+// 9. ADMIN DATA ACCESS (Passwords Excluded)
+// ==========================================
+
 export async function getAllAppointments() {
-  return await prisma.appointment.findMany({
-    orderBy: { date: 'desc' },
-    include: {
-      patient: {
-        select: { name: true, email: true }
+  try {
+    return await prisma.appointment.findMany({
+      orderBy: { date: "desc" },
+      include: {
+        patient: {
+          select: { name: true, email: true },
+        },
+        doctor: {
+          select: { name: true },
+        },
       },
-      doctor: {
-        select: { name: true }
-      }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("getAllAppointments error:", error);
+    return [];
+  }
 }
 
-
-// Get patient's health card
 export async function getHealthCard(userId: string) {
-  return await prisma.healthCard.findUnique({
-    where: { userId }
-  });
+  if (!userId) return null;
+  try {
+    return await prisma.healthCard.findUnique({
+      where: { userId },
+    });
+  } catch (error) {
+    console.error("getHealthCard error:", error);
+    return null;
+  }
 }
 
-// Create or update health card
 export async function saveHealthCard(userId: string, formData: FormData) {
+  if (!userId) return { success: false, error: "User ID required" };
   try {
     const data = {
-      dateOfBirth: formData.get("dateOfBirth") as string || null,
-      bloodType: formData.get("bloodType") as string || null,
-      height: formData.get("height") as string || null,
-      weight: formData.get("weight") as string || null,
-      allergies: formData.get("allergies") as string || null,
-      conditions: formData.get("conditions") as string || null,
-      medications: formData.get("medications") as string || null,
-      emergencyName: formData.get("emergencyName") as string || null,
-      emergencyPhone: formData.get("emergencyPhone") as string || null,
-      emergencyRelation: formData.get("emergencyRelation") as string || null,
-      insuranceProvider: formData.get("insuranceProvider") as string || null,
-      insuranceNumber: formData.get("insuranceNumber") as string || null,
+      dateOfBirth: (formData.get("dateOfBirth") as string) || null,
+      bloodType: (formData.get("bloodType") as string) || null,
+      height: (formData.get("height") as string) || null,
+      weight: (formData.get("weight") as string) || null,
+      allergies: (formData.get("allergies") as string) || null,
+      conditions: (formData.get("conditions") as string) || null,
+      medications: (formData.get("medications") as string) || null,
+      emergencyName: (formData.get("emergencyName") as string) || null,
+      emergencyPhone: (formData.get("emergencyPhone") as string) || null,
+      emergencyRelation: (formData.get("emergencyRelation") as string) || null,
+      insuranceProvider: (formData.get("insuranceProvider") as string) || null,
+      insuranceNumber: (formData.get("insuranceNumber") as string) || null,
     };
 
-    // Check if health card exists
     const existing = await prisma.healthCard.findUnique({
-      where: { userId }
+      where: { userId },
     });
 
     if (existing) {
-      // Update existing
       await prisma.healthCard.update({
         where: { userId },
-        data
+        data,
       });
     } else {
-      // Create new
       await prisma.healthCard.create({
         data: {
           ...data,
-          userId
-        }
+          userId,
+        },
       });
     }
 
     revalidatePath("/healthcard");
     return { success: true };
   } catch (error) {
-    console.error(error);
-    return { success: false };
+    console.error("saveHealthCard error:", error);
+    return { success: false, error: "Failed to save health card" };
   }
 }
-// --- NEW ADMIN DASHBOARD FUNCTIONS ---
 
-// 1. Get All Doctors
 export async function getAllDoctors() {
-  return await prisma.user.findMany({
-    where: { role: "DOCTOR" },
-    include: {
-      appointmentsAsDoctor: {
-        include: {
-          patient: {
-            select: { name: true, email: true }
-          }
+  try {
+    return await prisma.user.findMany({
+      where: { role: "DOCTOR" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        appointmentsAsDoctor: {
+          include: {
+            patient: {
+              select: { name: true, email: true },
+            },
+          },
+          orderBy: { date: "desc" },
         },
-        orderBy: { date: 'desc' }
-      }
-    }
-  });
-}
-
-// 2. Get All Patients
-export async function getAllPatients() {
-  return await prisma.user.findMany({
-    where: { role: "PATIENT" },
-    include: {
-      healthCard: true,
-      appointmentsAsPatient: {
-        include: {
-          doctor: {
-            select: { name: true }
-          }
-        },
-        orderBy: { date: 'desc' }
       },
-      orders: {
-        orderBy: { createdAt: 'desc' },
-        take: 5 // Last 5 orders
-      }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("getAllDoctors error:", error);
+    return [];
+  }
 }
 
-// 3. Get All Drivers (Detailed)
+export async function getAllPatients() {
+  try {
+    return await prisma.user.findMany({
+      where: { role: "PATIENT" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        healthCard: true,
+        appointmentsAsPatient: {
+          include: {
+            doctor: {
+              select: { name: true },
+            },
+          },
+          orderBy: { date: "desc" },
+        },
+        orders: {
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("getAllPatients error:", error);
+    return [];
+  }
+}
+
 export async function getAllDrivers() {
-  return await prisma.user.findMany({
-    where: { role: "DRIVER" },
-    include: {
-      assignedCalls: {
-        orderBy: { createdAt: 'desc' }
-      }
-    }
-  });
+  try {
+    return await prisma.user.findMany({
+      where: { role: "DRIVER" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isAvailable: true,
+        currentLatitude: true,
+        currentLongitude: true,
+        assignedCalls: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("getAllDrivers error:", error);
+    return [];
+  }
 }
 
-// 4. Get All Delivery Men (Detailed)
 export async function getAllDeliveryMen() {
-  return await prisma.user.findMany({
-    where: { role: "DELIVERY_MAN" },
-    include: {
-      assignedOrders: {
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: { name: true, phone: true }
-          }
-        }
-      }
-    }
-  });
+  try {
+    return await prisma.user.findMany({
+      where: { role: "DELIVERY_MAN" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isAvailable: true,
+        assignedOrders: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: {
+              select: { name: true, phone: true },
+            },
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("getAllDeliveryMen error:", error);
+    return [];
+  }
 }
-// 6. Get Pending Counts for Notifications
+
 export async function getPendingCounts() {
-  const pendingSOS = await prisma.emergencyCall.count({
-    where: { status: "PENDING" }
-  });
-
-  const pendingOrders = await prisma.order.count({
-    where: { status: "PENDING" }
-  });
-
-  return { sos: pendingSOS, orders: pendingOrders };
+  try {
+    const [pendingSOS, pendingOrders] = await Promise.all([
+      prisma.emergencyCall.count({
+        where: { status: "PENDING" },
+      }),
+      prisma.order.count({
+        where: { status: "PENDING" },
+      }),
+    ]);
+    return { sos: pendingSOS, orders: pendingOrders };
+  } catch (error) {
+    console.error("getPendingCounts error:", error);
+    return { sos: 0, orders: 0 };
+  }
 }
-// 5. Get Doctor Prescriptions (Helper)
+
 export async function getDoctorPrescriptions(doctorId: string) {
-  return await prisma.appointment.findMany({
-    where: { doctorId, prescription: { not: null } },
-    include: {
-      patient: { select: { name: true } }
-    },
-    orderBy: { date: 'desc' }
-  });
+  if (!doctorId) return [];
+  try {
+    return await prisma.appointment.findMany({
+      where: { doctorId, prescription: { not: null } },
+      include: {
+        patient: { select: { name: true } },
+      },
+      orderBy: { date: "desc" },
+    });
+  } catch (error) {
+    console.error("getDoctorPrescriptions error:", error);
+    return [];
+  }
 }
 
-// --- MEDICINE ADMIN FUNCTIONS ---
+// ==========================================
+// 10. MEDICINE INVENTORY ADMIN
+// ==========================================
 
-// Add a new medicine
 export async function addMedicine(data: {
   name: string;
   price: number;
@@ -679,24 +901,27 @@ export async function addMedicine(data: {
   description?: string;
 }) {
   try {
+    if (!data.name?.trim() || isNaN(data.price) || isNaN(data.stock)) {
+      return { success: false, error: "Valid name, price, and stock are required" };
+    }
+
     await prisma.medicine.create({
       data: {
-        name: data.name,
-        price: data.price,
-        stock: data.stock,
-        description: data.description || null,
+        name: data.name.trim(),
+        price: data.price >= 0 ? data.price : 0,
+        stock: data.stock >= 0 ? data.stock : 0,
+        description: data.description?.trim() || null,
       },
     });
     revalidatePath("/admin/pharmacy");
     revalidatePath("/pharmacy");
     return { success: true };
   } catch (error) {
-    console.error(error);
-    return { success: false, error: "Failed to add medicine" };
+    console.error("addMedicine error:", error);
+    return { success: false, error: "Failed to add medicine (name may already exist)" };
   }
 }
 
-// Update an existing medicine
 export async function updateMedicine(
   id: string,
   data: {
@@ -706,22 +931,35 @@ export async function updateMedicine(
     description?: string;
   }
 ) {
+  if (!id) return { success: false, error: "Medicine ID required" };
   try {
+    const updateData: {
+      name?: string;
+      price?: number;
+      stock?: number;
+      description?: string | null;
+    } = {};
+
+    if (data.name !== undefined) updateData.name = data.name.trim();
+    if (data.price !== undefined && !isNaN(data.price)) updateData.price = data.price >= 0 ? data.price : 0;
+    if (data.stock !== undefined && !isNaN(data.stock)) updateData.stock = data.stock >= 0 ? data.stock : 0;
+    if (data.description !== undefined) updateData.description = data.description.trim() || null;
+
     await prisma.medicine.update({
       where: { id },
-      data,
+      data: updateData,
     });
     revalidatePath("/admin/pharmacy");
     revalidatePath("/pharmacy");
     return { success: true };
   } catch (error) {
-    console.error(error);
+    console.error("updateMedicine error:", error);
     return { success: false, error: "Failed to update medicine" };
   }
 }
 
-// Delete a medicine
 export async function deleteMedicine(id: string) {
+  if (!id) return { success: false, error: "Medicine ID required" };
   try {
     await prisma.medicine.delete({
       where: { id },
@@ -730,7 +968,7 @@ export async function deleteMedicine(id: string) {
     revalidatePath("/pharmacy");
     return { success: true };
   } catch (error) {
-    console.error(error);
+    console.error("deleteMedicine error:", error);
     return { success: false, error: "Failed to delete medicine" };
   }
 }
