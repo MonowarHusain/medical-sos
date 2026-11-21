@@ -13,6 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Medical SOS — Emergency Healthcare & Dispatch",
   description: "Next.js + Prisma multi-role emergency medical response system",

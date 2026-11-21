@@ -3,6 +3,24 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Recursively serializes all Date objects to ISO strings so Next.js React Server
+ * Components and Server Action payloads never throw serialization errors across the wire.
+ */
+function serializeDates<T>(data: T): T {
+  if (data === null || data === undefined) return data;
+  if (data instanceof Date) return data.toISOString() as unknown as T;
+  if (Array.isArray(data)) return data.map(serializeDates) as unknown as T;
+  if (typeof data === "object") {
+    const copy: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      copy[key] = serializeDates(value);
+    }
+    return copy as T;
+  }
+  return data;
+}
+
 // ==========================================
 // 1. SOS & EMERGENCY CALLS
 // ==========================================
@@ -53,9 +71,10 @@ export async function checkCallStatus(callId: string) {
 
 export async function getEmergencyCalls() {
   try {
-    return await prisma.emergencyCall.findMany({
+    const calls = await prisma.emergencyCall.findMany({
       orderBy: { createdAt: "desc" },
     });
+    return serializeDates(calls);
   } catch (error) {
     console.error("getEmergencyCalls error:", error);
     return [];
@@ -80,7 +99,7 @@ export async function resolveCall(id: string) {
 export async function getPatientCalls(userId: string) {
   if (!userId) return [];
   try {
-    return await prisma.emergencyCall.findMany({
+    const calls = await prisma.emergencyCall.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
@@ -89,6 +108,7 @@ export async function getPatientCalls(userId: string) {
         },
       },
     });
+    return serializeDates(calls);
   } catch (error) {
     console.error("getPatientCalls error:", error);
     return [];
@@ -238,7 +258,7 @@ export async function getUserAppointments(userId: string, role: string) {
   try {
     const normalizedRole = role?.toUpperCase();
     if (normalizedRole === "PATIENT") {
-      return await prisma.appointment.findMany({
+      const appts = await prisma.appointment.findMany({
         where: { patientId: userId },
         include: {
           doctor: {
@@ -247,8 +267,9 @@ export async function getUserAppointments(userId: string, role: string) {
         },
         orderBy: { createdAt: "desc" },
       });
+      return serializeDates(appts);
     } else if (normalizedRole === "DOCTOR") {
-      return await prisma.appointment.findMany({
+      const appts = await prisma.appointment.findMany({
         include: {
           patient: {
             select: { id: true, name: true, email: true, phone: true },
@@ -256,6 +277,7 @@ export async function getUserAppointments(userId: string, role: string) {
         },
         orderBy: { createdAt: "desc" },
       });
+      return serializeDates(appts);
     }
     return [];
   } catch (error) {
@@ -406,7 +428,7 @@ export async function placeOrder(
 export async function getUserOrders(userId: string) {
   if (!userId) return [];
   try {
-    return await prisma.order.findMany({
+    const orders = await prisma.order.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
@@ -420,6 +442,7 @@ export async function getUserOrders(userId: string) {
         },
       },
     });
+    return serializeDates(orders);
   } catch (error) {
     console.error("getUserOrders error:", error);
     return [];
@@ -478,7 +501,7 @@ export async function assignDeliveryManToOrder(orderId: string, deliveryManId: s
 export async function getDeliveryManAssignedOrders(deliveryManId: string) {
   if (!deliveryManId) return [];
   try {
-    return await prisma.order.findMany({
+    const orders = await prisma.order.findMany({
       where: { deliveryManId },
       orderBy: { createdAt: "desc" },
       include: {
@@ -487,6 +510,7 @@ export async function getDeliveryManAssignedOrders(deliveryManId: string) {
         },
       },
     });
+    return serializeDates(orders);
   } catch (error) {
     console.error("getDeliveryManAssignedOrders error:", error);
     return [];
@@ -528,7 +552,7 @@ export async function updateOrderDeliveryStatus(orderId: string, deliveryStatus:
 
 export async function getOrdersWithDelivery() {
   try {
-    return await prisma.order.findMany({
+    const orders = await prisma.order.findMany({
       orderBy: { createdAt: "desc" },
       include: {
         user: {
@@ -544,6 +568,7 @@ export async function getOrdersWithDelivery() {
         },
       },
     });
+    return serializeDates(orders);
   } catch (error) {
     console.error("getOrdersWithDelivery error:", error);
     return [];
@@ -604,7 +629,7 @@ export async function assignDriverToCall(callId: string, driverId: string) {
 export async function getDriverAssignedCalls(driverId: string) {
   if (!driverId) return [];
   try {
-    return await prisma.emergencyCall.findMany({
+    const calls = await prisma.emergencyCall.findMany({
       where: { driverId },
       orderBy: { createdAt: "desc" },
       include: {
@@ -613,6 +638,7 @@ export async function getDriverAssignedCalls(driverId: string) {
         },
       },
     });
+    return serializeDates(calls);
   } catch (error) {
     console.error("getDriverAssignedCalls error:", error);
     return [];
@@ -685,7 +711,7 @@ export async function updateCallDriverStatus(callId: string, driverStatus: strin
 
 export async function getEmergencyCallsWithDrivers() {
   try {
-    return await prisma.emergencyCall.findMany({
+    const calls = await prisma.emergencyCall.findMany({
       orderBy: { createdAt: "desc" },
       include: {
         driver: {
@@ -703,6 +729,7 @@ export async function getEmergencyCallsWithDrivers() {
         },
       },
     });
+    return serializeDates(calls);
   } catch (error) {
     console.error("getEmergencyCallsWithDrivers error:", error);
     return [];
@@ -715,7 +742,7 @@ export async function getEmergencyCallsWithDrivers() {
 
 export async function getAllAppointments() {
   try {
-    return await prisma.appointment.findMany({
+    const appts = await prisma.appointment.findMany({
       orderBy: { date: "desc" },
       include: {
         patient: {
@@ -726,6 +753,7 @@ export async function getAllAppointments() {
         },
       },
     });
+    return serializeDates(appts);
   } catch (error) {
     console.error("getAllAppointments error:", error);
     return [];
@@ -816,7 +844,7 @@ export async function getAllDoctors() {
 
 export async function getAllPatients() {
   try {
-    return await prisma.user.findMany({
+    const patients = await prisma.user.findMany({
       where: { role: "PATIENT" },
       select: {
         id: true,
@@ -839,6 +867,7 @@ export async function getAllPatients() {
         },
       },
     });
+    return serializeDates(patients);
   } catch (error) {
     console.error("getAllPatients error:", error);
     return [];
@@ -847,7 +876,7 @@ export async function getAllPatients() {
 
 export async function getAllDrivers() {
   try {
-    return await prisma.user.findMany({
+    const drivers = await prisma.user.findMany({
       where: { role: "DRIVER" },
       select: {
         id: true,
@@ -863,6 +892,7 @@ export async function getAllDrivers() {
         },
       },
     });
+    return serializeDates(drivers);
   } catch (error) {
     console.error("getAllDrivers error:", error);
     return [];
@@ -871,7 +901,7 @@ export async function getAllDrivers() {
 
 export async function getAllDeliveryMen() {
   try {
-    return await prisma.user.findMany({
+    const riders = await prisma.user.findMany({
       where: { role: { in: ["DELIVERY", "DELIVERY_MAN"] } },
       select: {
         id: true,
@@ -890,6 +920,7 @@ export async function getAllDeliveryMen() {
         },
       },
     });
+    return serializeDates(riders);
   } catch (error) {
     console.error("getAllDeliveryMen error:", error);
     return [];
@@ -916,13 +947,14 @@ export async function getPendingCounts() {
 export async function getDoctorPrescriptions(doctorId: string) {
   if (!doctorId) return [];
   try {
-    return await prisma.appointment.findMany({
+    const rx = await prisma.appointment.findMany({
       where: { doctorId, prescription: { not: null } },
       include: {
         patient: { select: { name: true } },
       },
       orderBy: { date: "desc" },
     });
+    return serializeDates(rx);
   } catch (error) {
     console.error("getDoctorPrescriptions error:", error);
     return [];
