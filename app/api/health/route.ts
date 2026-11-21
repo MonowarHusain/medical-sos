@@ -20,10 +20,6 @@ export async function GET() {
       ok: true,
       dbConnected: true,
       userCount,
-      hasDatabaseUrl,
-      hasSurroundingQuotes,
-      startsWithPostgres,
-      timestamp: new Date().toISOString(),
     });
   } catch (err: unknown) {
     const error = err as { message?: string; code?: string };
@@ -31,13 +27,10 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: false,
-        dbConnected: false,
         hasDatabaseUrl,
-        hasSurroundingQuotes,
         startsWithPostgres,
         error: error?.message || "Failed to query database",
         code: error?.code,
-        timestamp: new Date().toISOString(),
       },
       { status: 500 }
     );
