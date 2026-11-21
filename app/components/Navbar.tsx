@@ -9,14 +9,26 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("user");
-    if (saved) {
-      try {
-        setUser(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse user:", e);
+    const updateUser = () => {
+      const saved = localStorage.getItem("user");
+      if (saved) {
+        try {
+          setUser(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse user:", e);
+        }
+      } else {
+        setUser(null);
       }
-    }
+    };
+
+    updateUser();
+    window.addEventListener("storage", updateUser);
+    window.addEventListener("user-state-change", updateUser);
+    return () => {
+      window.removeEventListener("storage", updateUser);
+      window.removeEventListener("user-state-change", updateUser);
+    };
   }, []);
 
   const handleLogout = () => {
