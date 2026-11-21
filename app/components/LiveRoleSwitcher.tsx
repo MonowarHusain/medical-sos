@@ -108,10 +108,15 @@ export default function LiveRoleSwitcher() {
 
     startTransition(async () => {
       try {
-        const res = await switchUserRole(user.id, targetRole);
+        const res = await switchUserRole({
+          userId: user.id,
+          email: user.email,
+          newRole: targetRole,
+        });
         if (res.success && res.user) {
           const updatedUser = {
             ...user,
+            id: res.user.id,
             role: res.user.role,
           };
           localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -133,12 +138,12 @@ export default function LiveRoleSwitcher() {
           setTimeout(() => setNotification(null), 3000);
         } else {
           setNotification(`Error: ${res.error || "Failed to update role"}`);
-          setTimeout(() => setNotification(null), 4000);
+          setTimeout(() => setNotification(null), 5000);
         }
       } catch (err) {
         console.error("switchUserRole failed:", err);
-        setNotification("Failed to switch role in DB.");
-        setTimeout(() => setNotification(null), 3000);
+        setNotification(err instanceof Error ? `Error: ${err.message}` : "Failed to switch role in DB.");
+        setTimeout(() => setNotification(null), 5000);
       }
     });
   };
@@ -300,8 +305,18 @@ export default function LiveRoleSwitcher() {
 
       {/* Real-time Status / Feedback Notification */}
       {notification && (
-        <div className="bg-slate-900 border-t border-slate-800 px-4 py-1 text-center font-mono text-[11px] text-emerald-400 flex items-center justify-center gap-2 animate-fadeIn">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+        <div
+          className={`border-t px-4 py-1 text-center font-mono text-[11px] flex items-center justify-center gap-2 animate-fadeIn ${
+            notification.startsWith("Error:")
+              ? "bg-rose-950/80 border-rose-800 text-rose-300"
+              : "bg-slate-900 border-slate-800 text-emerald-400"
+          }`}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              notification.startsWith("Error:") ? "bg-rose-400" : "bg-emerald-400"
+            }`}
+          />
           <span>{notification}</span>
         </div>
       )}

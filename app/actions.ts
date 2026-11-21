@@ -1019,11 +1019,32 @@ export async function deleteMedicine(id: string) {
 export const VALID_ROLES = ["PATIENT", "DOCTOR", "DRIVER", "DELIVERY", "ADMIN"] as const;
 export type ValidRole = (typeof VALID_ROLES)[number];
 
-export async function switchUserRole(userId: string, newRole: string) {
+export type SwitchUserRoleParams = {
+  userId?: string;
+  email?: string;
+  newRole: string;
+};
+
+export async function switchUserRole(
+  paramsOrUserId: string | SwitchUserRoleParams,
+  newRoleParam?: string,
+  emailParam?: string
+) {
   try {
-    if (!userId || typeof userId !== "string") {
-      return { success: false, error: "User ID is required" };
+    let userId: string | undefined;
+    let email: string | undefined;
+    let newRole: string;
+
+    if (typeof paramsOrUserId === "object" && paramsOrUserId !== null) {
+      userId = paramsOrUserId.userId;
+      email = paramsOrUserId.email;
+      newRole = paramsOrUserId.newRole;
+    } else {
+      userId = paramsOrUserId;
+      newRole = newRoleParam || "";
+      email = emailParam;
     }
+
     const normalizedRole = (newRole || "").trim().toUpperCase() as ValidRole;
     if (!VALID_ROLES.includes(normalizedRole)) {
       return {
@@ -1032,8 +1053,29 @@ export async function switchUserRole(userId: string, newRole: string) {
       };
     }
 
+    let existingUser = null;
+
+    if (userId && typeof userId === "string" && userId.trim()) {
+      existingUser = await prisma.user.findUnique({
+        where: { id: userId.trim() },
+      });
+    }
+
+    if (!existingUser && email && typeof email === "string" && email.trim()) {
+      existingUser = await prisma.user.findUnique({
+        where: { email: email.trim().toLowerCase() },
+      });
+    }
+
+    if (!existingUser) {
+      return {
+        success: false,
+        error: `User not found in database${email ? ` (email: ${email})` : ""}${userId ? ` (id: ${userId})` : ""}`,
+      };
+    }
+
     const updated = await prisma.user.update({
-      where: { id: userId.trim() },
+      where: { id: existingUser.id },
       data: { role: normalizedRole },
       select: {
         id: true,
@@ -1063,7 +1105,10 @@ export async function switchUserRole(userId: string, newRole: string) {
     };
   } catch (error) {
     console.error("switchUserRole error:", error);
-    return { success: false, error: "Database connection failed. Please retry." };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to switch role in DB",
+    };
   }
 }
 
