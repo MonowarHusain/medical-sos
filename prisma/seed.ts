@@ -51,21 +51,28 @@ async function main() {
   const seededUsers: Record<string, any> = {};
 
   for (const user of demoUsers) {
+    const normalizedEmail = user.email.toLowerCase().trim();
     const record = await prisma.user.upsert({
-      where: { email: user.email },
+      where: { email: normalizedEmail },
       update: {
-        name: user.name,
+        email: normalizedEmail,
+        name: user.name.trim(),
         role: user.role,
         phone: user.phone,
-        password: user.password,
+        password: user.password.trim(),
         isAvailable: user.isAvailable ?? true,
         currentLatitude: user.currentLatitude ?? null,
         currentLongitude: user.currentLongitude ?? null,
       },
-      create: user,
+      create: {
+        ...user,
+        email: normalizedEmail,
+        name: user.name.trim(),
+        password: user.password.trim(),
+      },
     });
     seededUsers[user.role] = record;
-    console.log(`  ✓ Seeded User: ${user.email} (${user.role})`);
+    console.log(`  ✓ Seeded User: ${normalizedEmail} (${user.role}) - Password: ${user.password}`);
   }
 
   const patient = seededUsers["PATIENT"];
