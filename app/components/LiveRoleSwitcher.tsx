@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { switchUserRole, loginUser, type ValidRole } from "../actions";
+import { getRoleRoute } from "@/lib/roleRoutes";
 
 const DEMO_ACCOUNTS = [
   { group: "Patients", email: "pat1@test.com", name: "Patient 1", role: "PATIENT", icon: "🤒" },
@@ -88,10 +89,12 @@ export default function LiveRoleSwitcher() {
 
     // Listen to local storage events across tabs or components
     window.addEventListener("storage", loadUser);
+    window.addEventListener("user-session-updated", loadUser);
     window.addEventListener("user-state-change", loadUser);
 
     return () => {
       window.removeEventListener("storage", loadUser);
+      window.removeEventListener("user-session-updated", loadUser);
       window.removeEventListener("user-state-change", loadUser);
     };
   }, [pathname]);
@@ -108,11 +111,7 @@ export default function LiveRoleSwitcher() {
 
     startTransition(async () => {
       try {
-        const res = await switchUserRole({
-          userId: user.id,
-          email: user.email,
-          newRole: targetRole,
-        });
+        const res = await switchUserRole(user.id, targetRole, user.email);
         if (res.success && res.user) {
           const updatedUser = {
             ...user,
@@ -126,16 +125,13 @@ export default function LiveRoleSwitcher() {
           setLastSyncTime(now);
           setNotification(`DB Updated: Role switched to ${targetRole}`);
 
-          // Dispatched event for other components
+          // Dispatched events for other components
+          window.dispatchEvent(new Event("user-session-updated"));
           window.dispatchEvent(new Event("user-state-change"));
 
-          // Redirect to appropriate dashboard
-          const target = ROLES.find((r) => r.role === targetRole);
-          if (target) {
-            router.push(target.path);
-          }
-
-          setTimeout(() => setNotification(null), 3000);
+          // Clean deterministic navigation
+          const targetRoute = getRoleRoute(targetRole);
+          window.location.assign(targetRoute);
         } else {
           setNotification(`Error: ${res.error || "Failed to update role"}`);
           setTimeout(() => setNotification(null), 5000);
@@ -150,7 +146,7 @@ export default function LiveRoleSwitcher() {
 
   // Handle instant 1-click switch between the 9 demo accounts
   const handleAccountSwitch = async (email: string) => {
-    if (user.email.toLowerCase() === email.toLowerCase() || isPending) return;
+    if (!email || (user.email && user.email.toLowerCase() === email.toLowerCase()) || isPending) return;
 
     startTransition(async () => {
       try {
@@ -163,27 +159,19 @@ export default function LiveRoleSwitcher() {
           setLastSyncTime(now);
           setNotification(`Switched to account: ${res.user.email}`);
 
+          window.dispatchEvent(new Event("user-session-updated"));
           window.dispatchEvent(new Event("user-state-change"));
 
-          const userRole = (res.user.role || "").toUpperCase();
-          const target = ROLES.find(
-            (r) => r.role === (userRole === "DELIVERY_MAN" ? "DELIVERY" : userRole)
-          );
-          if (target) {
-            router.push(target.path);
-          } else {
-            router.push("/patient");
-          }
-
-          setTimeout(() => setNotification(null), 3000);
+          const targetRoute = getRoleRoute(res.user.role);
+          window.location.assign(targetRoute);
         } else {
-          setNotification(res.error || "Failed to switch account");
-          setTimeout(() => setNotification(null), 3000);
+          setNotification(`Error: ${res.error || "Failed to switch account"}`);
+          setTimeout(() => setNotification(null), 5000);
         }
       } catch (err) {
         console.error("Account switch error:", err);
-        setNotification("Account switch failed");
-        setTimeout(() => setNotification(null), 3000);
+        setNotification(err instanceof Error ? `Error: ${err.message}` : "Account switch failed");
+        setTimeout(() => setNotification(null), 5000);
       }
     });
   };
@@ -267,10 +255,19 @@ export default function LiveRoleSwitcher() {
               id="quick-account-select"
               aria-label="Switch Demo Account"
               disabled={isPending}
-              value={user.email.toLowerCase()}
-              onChange={(e) => handleAccountSwitch(e.target.value)}
+              value={
+                DEMO_ACCOUNTS.some((a) => a.email.toLowerCase() === (user.email || "").toLowerCase().trim())
+                  ? (user.email || "").toLowerCase().trim()
+                  : ""
+              }
+              onChange={(e) => {
+                if (e.target.value) handleAccountSwitch(e.target.value);
+              }}
               className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 font-medium focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer disabled:opacity-50"
             >
+              <option value="" disabled>
+                Select / Switch Profile...
+              </option>
               <optgroup label="Patients">
                 <option value="pat1@test.com">🤒 Patient 1 (pat1@test.com)</option>
                 <option value="pat2@test.com">🤒 Patient 2 (pat2@test.com)</option>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getRoleRoute } from "@/lib/roleRoutes";
 
 export default function Navbar() {
   const router = useRouter();
@@ -24,31 +25,26 @@ export default function Navbar() {
 
     updateUser();
     window.addEventListener("storage", updateUser);
+    window.addEventListener("user-session-updated", updateUser);
     window.addEventListener("user-state-change", updateUser);
     return () => {
       window.removeEventListener("storage", updateUser);
+      window.removeEventListener("user-session-updated", updateUser);
       window.removeEventListener("user-state-change", updateUser);
     };
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
-    router.push("/");
+    window.dispatchEvent(new Event("user-session-updated"));
+    window.dispatchEvent(new Event("user-state-change"));
+    window.location.assign("/login");
   };
 
   if (!user) return null;
 
   const role = user.role ? user.role.toUpperCase() : "PATIENT";
-  const homeLink =
-    role === "ADMIN"
-      ? "/admin"
-      : role === "DOCTOR"
-      ? "/appointments"
-      : role === "DRIVER"
-      ? "/driver"
-      : role === "DELIVERY" || role === "DELIVERY_MAN"
-      ? "/delivery"
-      : "/patient";
+  const homeLink = getRoleRoute(user.role);
 
   return (
     <nav className="bg-slate-900 border-b border-slate-800 px-4 py-3.5 sticky top-0 z-30 shadow-md">
