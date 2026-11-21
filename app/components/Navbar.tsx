@@ -34,7 +34,7 @@ export default function Navbar() {
       ? "/appointments"
       : role === "DRIVER"
       ? "/driver"
-      : role === "DELIVERY_MAN"
+      : role === "DELIVERY" || role === "DELIVERY_MAN"
       ? "/delivery"
       : "/patient";
 

@@ -37,7 +37,8 @@ export default function DeliveryDashboard() {
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        if (parsed.role?.toUpperCase() !== "DELIVERY_MAN") {
+        const parsedRole = parsed.role?.toUpperCase();
+        if (parsedRole !== "DELIVERY_MAN" && parsedRole !== "DELIVERY") {
           router.push("/");
           return;
         }

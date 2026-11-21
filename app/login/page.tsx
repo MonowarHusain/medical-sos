@@ -25,7 +25,7 @@ export default function LoginPage() {
       router.push("/appointments");
     } else if (normalized === "DRIVER") {
       router.push("/driver");
-    } else if (normalized === "DELIVERY_MAN") {
+    } else if (normalized === "DELIVERY" || normalized === "DELIVERY_MAN") {
       router.push("/delivery");
     } else {
       router.push("/patient");
@@ -174,7 +174,7 @@ export default function LoginPage() {
                   <option value="PATIENT">Patient</option>
                   <option value="DOCTOR">Doctor</option>
                   <option value="DRIVER">Ambulance Driver</option>
-                  <option value="DELIVERY_MAN">Medicine Delivery</option>
+                  <option value="DELIVERY">Medicine Delivery Rider</option>
                   <option value="ADMIN">Admin</option>
                 </select>
               </div>
@@ -213,58 +213,139 @@ export default function LoginPage() {
             <div className="mt-6 pt-5 border-t border-slate-800">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">
-                  ⚡ Viva Demo One-Click Sign In
+                  ⚡ Viva Demo: 9 Multi-Role Accounts
                 </p>
                 <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded font-mono">
                   PWD: 123456
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo("patient@test.com", "PATIENT")}
-                  disabled={loading}
-                  className="px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
-                  title="patient@test.com / 123456 -> /patient"
-                >
-                  🤒 Patient
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo("doctor@test.com", "DOCTOR")}
-                  disabled={loading}
-                  className="px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
-                  title="doctor@test.com / 123456 -> /appointments"
-                >
-                  👨‍⚕️ Doctor
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo("admin@test.com", "ADMIN")}
-                  disabled={loading}
-                  className="px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
-                  title="admin@test.com / 123456 -> /admin"
-                >
-                  🚨 Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo("driver@test.com", "DRIVER")}
-                  disabled={loading}
-                  className="px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
-                  title="driver@test.com / 123456 -> /driver"
-                >
-                  🚑 Driver
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo("delivery@test.com", "DELIVERY_MAN")}
-                  disabled={loading}
-                  className="col-span-2 px-2.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50 text-center active:scale-95"
-                  title="delivery@test.com / 123456 -> /delivery"
-                >
-                  🛵 Medicine Courier
-                </button>
+
+              <div className="space-y-2.5">
+                {/* Patients */}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 block mb-1">
+                    Patients
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("pat1@test.com", "PATIENT")}
+                      disabled={loading}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="pat1@test.com / 123456 -> /patient"
+                    >
+                      <span>🤒 Patient 1</span>
+                      <span className="text-[10px] opacity-60 font-mono">pat1</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("pat2@test.com", "PATIENT")}
+                      disabled={loading}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="pat2@test.com / 123456 -> /patient"
+                    >
+                      <span>🤒 Patient 2</span>
+                      <span className="text-[10px] opacity-60 font-mono">pat2</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Doctors */}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 block mb-1">
+                    Doctors
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("doc1@test.com", "DOCTOR")}
+                      disabled={loading}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-950/40 hover:bg-blue-900/60 border border-blue-800/60 text-blue-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="doc1@test.com / 123456 -> /appointments"
+                    >
+                      <span>👨‍⚕️ Doctor 1</span>
+                      <span className="text-[10px] opacity-60 font-mono">doc1</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("doc2@test.com", "DOCTOR")}
+                      disabled={loading}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-950/40 hover:bg-blue-900/60 border border-blue-800/60 text-blue-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="doc2@test.com / 123456 -> /appointments"
+                    >
+                      <span>👨‍⚕️ Doctor 2</span>
+                      <span className="text-[10px] opacity-60 font-mono">doc2</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Ambulance Drivers */}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block mb-1">
+                    Ambulance Drivers
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("dri1@test.com", "DRIVER")}
+                      disabled={loading}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/60 text-amber-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="dri1@test.com / 123456 -> /driver"
+                    >
+                      <span>🚑 Driver 1</span>
+                      <span className="text-[10px] opacity-60 font-mono">dri1</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("dri2@test.com", "DRIVER")}
+                      disabled={loading}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/60 text-amber-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="dri2@test.com / 123456 -> /driver"
+                    >
+                      <span>🚑 Driver 2</span>
+                      <span className="text-[10px] opacity-60 font-mono">dri2</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Delivery Couriers & Admin */}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block mb-1">
+                    Couriers & Admin
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("deli1@test.com", "DELIVERY")}
+                      disabled={loading}
+                      className="px-2 py-1.5 text-xs font-semibold rounded-lg bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800/60 text-emerald-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="deli1@test.com / 123456 -> /delivery"
+                    >
+                      <span>🛵 Rider 1</span>
+                      <span className="text-[10px] opacity-60 font-mono">deli1</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("deli2@test.com", "DELIVERY")}
+                      disabled={loading}
+                      className="px-2 py-1.5 text-xs font-semibold rounded-lg bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800/60 text-emerald-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="deli2@test.com / 123456 -> /delivery"
+                    >
+                      <span>🛵 Rider 2</span>
+                      <span className="text-[10px] opacity-60 font-mono">deli2</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemo("admin@test.com", "ADMIN")}
+                      disabled={loading}
+                      className="px-2 py-1.5 text-xs font-semibold rounded-lg bg-purple-950/40 hover:bg-purple-900/60 border border-purple-800/60 text-purple-200 transition disabled:opacity-50 text-left flex items-center justify-between active:scale-95"
+                      title="admin@test.com / 123456 -> /admin"
+                    >
+                      <span>🚨 Admin</span>
+                      <span className="text-[10px] opacity-60 font-mono">admin</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
